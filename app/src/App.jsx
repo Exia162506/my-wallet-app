@@ -42,7 +42,6 @@ const CATEGORIES = {
   Transfer: ['โอนย้ายเงินภายใน'] 
 };
 
-// ฐานข้อมูลธนาคารเริ่มต้นทั้งหมดที่มีในระบบ
 const DEFAULT_WALLETS = [
   { id: 'Cash', name: 'เงินสด', color: '#d4af37', active: true },
   { id: 'KBank', name: 'กสิกรไทย (KBank)', color: '#138f2d', active: true },
@@ -87,7 +86,6 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
-  // ระบบกระเป๋าเงิน
   const [wallets, setWallets] = useState(() => {
     const saved = localStorage.getItem('my_wallet_settings_v1');
     if (saved) return JSON.parse(saved);
@@ -100,7 +98,6 @@ function App() {
 
   const activeWallets = wallets.filter(w => w.active);
 
-  // สถานะหน้า Auth
   const [authMode, setAuthMode] = useState('login'); 
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -109,16 +106,13 @@ function App() {
   const [inputOtp, setInputOtp] = useState('');
   const [tempRegData, setTempRegData] = useState(null);
 
-  // สถานะ Popup
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
-  // สถานะระบบสแกนสลิป
   const [isScanning, setIsScanning] = useState(false);
-
   const [slipError, setSlipError] = useState(false);
   const [exportStart, setExportStart] = useState('');
   const [exportEnd, setExportEnd] = useState('');
@@ -168,24 +162,22 @@ function App() {
     }
   }, [user]);
 
-  // ฟังก์ชันระบบอ่านสลิป (OCR)
+  // ฟังก์ชันสแกน OCR (อ่านตัวอักษรและตัวเลขบนสลิป)
   const scanSlipOCR = async (imageSrc) => {
     setIsScanning(true);
     try {
-      // ใช้ Tesseract อ่านภาพ (รองรับไทยและอังกฤษ)
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
-      console.log("OCR Extracted Text:", text); // ไว้ดูใน Console ได้ว่ามันอ่านอะไรออกบ้าง
+      console.log("OCR Extracted Text:", text); // ตรวจสอบคำที่สแกนได้ใน Console
 
-      // 1. ดึงยอดเงิน (หารูปแบบตัวเลขที่มีคอมม่าและลงท้ายด้วยทศนิยม 2 ตำแหน่ง)
+      // ค้นหาจำนวนเงิน (รูปแบบ xx.xx หรือ x,xxx.xx)
       const amountRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}/g;
       const amounts = text.match(amountRegex);
       let detectedAmount = '';
       if (amounts && amounts.length > 0) {
-        // ส่วนใหญ่ยอดเงินหลักจะอยู่ท้ายๆ หรือดึงยอดแรกมา
         detectedAmount = amounts[0].replace(/,/g, ''); 
       }
 
-      // 2. ดึงชื่อธนาคาร / กระเป๋าเงิน
+      // ค้นหาชื่อธนาคารจากคีย์เวิร์ด
       const lowerText = text.toLowerCase();
       let detectedWallet = null;
       if (lowerText.includes('kbank') || text.includes('กสิกร')) detectedWallet = 'กสิกรไทย (KBank)';
@@ -195,10 +187,9 @@ function App() {
       else if (lowerText.includes('truemoney') || text.includes('ทรูมันนี่')) detectedWallet = 'TrueMoney';
       else if (lowerText.includes('krungsri') || text.includes('กรุงศรี')) detectedWallet = 'กรุงศรี (Krungsri)';
 
-      // อัปเดตข้อมูลเข้าฟอร์ม
       setFormData(prev => ({
         ...prev,
-        amount: detectedAmount || prev.amount, // ถ้าสแกนเจอให้ใส่แทน ถ้าไม่เจอให้คงค่าเดิมไว้
+        amount: detectedAmount || prev.amount,
         wallet: detectedWallet && activeWallets.map(w=>w.name).includes(detectedWallet) ? detectedWallet : prev.wallet,
         fromWallet: detectedWallet && prev.type === 'Transfer' && activeWallets.map(w=>w.name).includes(detectedWallet) ? detectedWallet : prev.fromWallet
       }));
@@ -209,6 +200,7 @@ function App() {
     setIsScanning(false);
   };
 
+  // ฟังก์ชันรับรูปภาพและแปลงลง Canvas (ประกาศเพียงครั้งเดียว)
   const processFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     const reader = new FileReader();
@@ -216,7 +208,7 @@ function App() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600; // ปรับความคมชัดขึ้นมาหน่อยเพื่อให้ OCR อ่านง่ายขึ้น
+        const MAX_WIDTH = 600; 
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
@@ -227,7 +219,7 @@ function App() {
         setFormData(prev => ({ ...prev, slip: dataUrl }));
         setSlipError(false);
         
-        // เรียกใช้ฟังก์ชันสแกน OCR ทันทีที่แปลงรูปเสร็จ
+        // เรียกใช้งาน OCR หลังจากอัปโหลดรูปเสร็จ
         scanSlipOCR(dataUrl);
       };
       img.src = event.target.result;
@@ -435,7 +427,6 @@ function App() {
 
   transactions.forEach(t => {
     const amt = Number(t.Amount);
-    
     if (t.Type === 'Income') {
       totalBalance += amt;
       const w = t.Wallet || 'เงินสด';
@@ -735,7 +726,7 @@ function App() {
                 position: 'relative'
               }}
             >
-              {/* Overlay แสดงสถานะตอนกำลังสแกน OCR */}
+              {/* Overlay สถานะกำลังสแกน */}
               {isScanning && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
                   <div className="spinner" style={{ width: '30px', height: '30px', border: '3px solid rgba(212,175,55,0.3)', borderTopColor: '#d4af37', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
