@@ -42,7 +42,7 @@ const CATEGORIES = {
   Transfer: ['โอนย้ายเงินภายใน'] 
 };
 
-// รายชื่อบัญชีหลัก และบัญชีอื่นๆ (สำหรับรองรับธนาคารอื่นๆ ทั้งหมดในไทย)
+// บัญชีหลัก และ "บัญชีอื่นๆ" สำหรับรวบรวมธนาคารอื่นๆ ทั้งหมดในประเทศไทย
 const DEFAULT_WALLETS = [
   { id: 'Cash', name: 'เงินสด', accountNumber: '-', accountName: '-', color: '#d4af37', active: true, custom: false },
   { id: 'KBank', name: 'กสิกรไทย (KBank)', accountNumber: '', accountName: '', color: '#138f2d', active: true, custom: false },
@@ -81,9 +81,8 @@ function App() {
 
   const [customAlert, setCustomAlert] = useState(null);
 
-  // เปลี่ยน Key เป็น v6 เพื่อเคลียร์ค่าเก่าใน localStorage ที่ค้างอยู่
   const [wallets, setWallets] = useState(() => {
-    const saved = localStorage.getItem('my_wallet_settings_v6');
+    const saved = localStorage.getItem('my_wallet_settings_v7');
     if (saved) return JSON.parse(saved);
     return DEFAULT_WALLETS;
   });
@@ -95,7 +94,7 @@ function App() {
   const [newAccountNumber, setNewAccountNumber] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('my_wallet_settings_v6', JSON.stringify(wallets));
+    localStorage.setItem('my_wallet_settings_v7', JSON.stringify(wallets));
   }, [wallets]);
 
   const activeWallets = wallets.filter(w => w.active);
@@ -213,7 +212,7 @@ function App() {
     }
   };
 
-  // ระบบสแกน OCR จัดกลุ่มธนาคารรองทั้งหมดให้อยู่ใน "บัญชีอื่นๆ (Other)" อัตโนมัติ
+  // ระบบสแกน OCR ครอบคลุมทุกธนาคารในไทย และส่งเข้า "บัญชีอื่นๆ (Other)" อัตโนมัติหากไม่ตรงกับบัญชีหลัก
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
@@ -257,12 +256,13 @@ function App() {
         detectedType = 'Income';
       }
 
-      // คีย์เวิร์ดธนาคารอื่นๆ ทั้งหมดในไทยที่จะถูกจัดเก็บไว้ใน "บัญชีอื่นๆ (Other)"
-      const otherBankKeywords = [
+      // รายชื่อธนาคารและสถาบันการเงินทั้งหมดในประเทศไทย
+      const allThaiBankKeywords = [
         'กรุงศรี', 'krungsri', 'อยุธยา', 'ttb', 'ทีทีบี', 'ทหารไทย', 'ธนชาต', 
         'ออมสิน', 'gsb', 'ธ.ก.ส', 'baac', 'ธอส', 'ghb', 'ghbank', 
         'ยูโอบี', 'uob', 'ซีไอเอ็มบี', 'cimb', 'เกียรตินาคิน', 'kkp', 
-        'ทิสโก้', 'tisco', 'แลนด์', 'lh bank', 'ไทยเครดิต', 'thai credit'
+        'ทิสโก้', 'tisco', 'แลนด์', 'lh bank', 'ไทยเครดิต', 'thai credit',
+        'cimb thai', 'icbc', 'hsbc', 'citibank', 'standard chartered'
       ];
 
       for (let w of activeWallets) {
@@ -277,7 +277,7 @@ function App() {
       }
 
       if (!matchedWallet) {
-        for (let keyword of otherBankKeywords) {
+        for (let keyword of allThaiBankKeywords) {
           if (lowerText.includes(keyword)) {
             const otherWallet = activeWallets.find(w => w.id === 'Other' || w.name.includes('อื่นๆ'));
             if (otherWallet) {
