@@ -537,9 +537,16 @@ function App() {
         <div style={{ fontSize: '12px', color: '#888', marginBottom: '10px' }}>
           สรุปยอดเดือนปัจจุบัน ({new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })})
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #333' }}>
-          <div><p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>รายรับรวม</p><p className="income-text" style={{ margin: 0, fontSize: '18px' }}>+฿{currentMonthIncome.toLocaleString()}</p></div>
-          <div><p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>ใช้ไปแล้ว</p><p className="expense-text" style={{ margin: 0, fontSize: '18px' }}>-฿{currentMonthExpense.toLocaleString()}</p></div>
+        {/* ปรับแต่งส่วนแสดงรายรับรวมและใช้ไปแล้ว ให้ขยับเข้าหากันและใส่กรอบ */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #333' }}>
+          <div style={{ flex: 1, maxWidth: '160px', padding: '10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '8px', textAlign: 'center' }}>
+            <p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>รายรับรวม</p>
+            <p className="income-text" style={{ margin: '5px 0 0 0', fontSize: '18px' }}>+฿{currentMonthIncome.toLocaleString()}</p>
+          </div>
+          <div style={{ flex: 1, maxWidth: '160px', padding: '10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '8px', textAlign: 'center' }}>
+            <p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>ใช้ไปแล้ว</p>
+            <p className="expense-text" style={{ margin: '5px 0 0 0', fontSize: '18px' }}>-฿{currentMonthExpense.toLocaleString()}</p>
+          </div>
         </div>
       </div>
 
