@@ -186,28 +186,35 @@ function App() {
     }
   };
 
-  // ปรับปรุงระบบ OCR ให้ค้นหายอดเงินได้ยืดหยุ่นขึ้น (รองรับทศนิยมและตัวเลขทั่วไป)
+  // ปรับปรุงการสแกน OCR ให้เน้นหายอดเงินที่มีทศนิยม .xx เป็นหลักก่อนเสมอเพื่อความแม่นยำ
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'eng');
       console.log("OCR Extracted Text:", text);
 
-      if (!text || text.trim() === "") {
-        alert("⚠️ OCR ไม่สามารถอ่านข้อความในรูปภาพนี้ได้ กรุณากรอกจำนวนเงินด้วยตนเอง");
-        return;
+      let detectedAmount = '';
+
+      // 1. ค้นหายอดเงินที่มีทศนิยม 2 ตำแหน่งก่อน (เช่น 114.00, 50.25)
+      const decimalRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2}/g;
+      const decimalMatches = text.match(decimalRegex);
+
+      if (decimalMatches && decimalMatches.length > 0) {
+        // กรองเอาตัวเลขที่สมเหตุสมผล (มากกว่า 0 และไม่เกิน 1,000,000)
+        const validAmounts = decimalMatches.map(m => m.replace(/,/g, '')).filter(num => Number(num) > 0 && Number(num) < 1000000);
+        if (validAmounts.length > 0) {
+          detectedAmount = validAmounts[0]; // เลือกยอดแรกที่มีทศนิยม (มักจะเป็นยอดโอนหลักบนสลิป)
+        }
       }
 
-      // Regex แบบยืดหยุ่น: หาตัวเลขที่มีทศนิยม .xx หรือตัวเลขทั่วไปในสลิป
-      const amountRegex = /\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2}|\d+/g;
-      const matches = text.match(amountRegex);
-      
-      let detectedAmount = '';
-      if (matches && matches.length > 0) {
-        // กรองเอาเฉพาะตัวเลขที่มีค่ามากกว่า 0 เพื่อเลี่ยงปี พ.ศ. หรือรหัสอื่นๆ
-        const validAmounts = matches.map(m => m.replace(/,/g, '')).filter(num => Number(num) > 0 && Number(num) < 1000000);
-        if (validAmounts.length > 0) {
-          // มักจะเอายอดเงินที่อยู่ท้ายๆ ของข้อความสลิป
-          detectedAmount = validAmounts[validAmounts.length - 1];
+      // 2. ถ้าไม่เจอแบบมีทศนิยม ค่อยลองหาตัวเลขทั่วไป
+      if (!detectedAmount) {
+        const generalRegex = /\d+/g;
+        const generalMatches = text.match(generalRegex);
+        if (generalMatches && generalMatches.length > 0) {
+          const valid = generalMatches.map(Number.parseFloat).filter(n => n > 0 && n < 1000000);
+          if (valid.length > 0) {
+            detectedAmount = valid[0].toString();
+          }
         }
       }
 
@@ -242,7 +249,6 @@ function App() {
 
     } catch (error) {
       console.error("OCR Error:", error);
-      alert("❌ เกิดข้อผิดพลาดในการสแกนสลิป: " + error.message);
     } finally {
       setIsScanning(false);
     }
@@ -256,7 +262,7 @@ function App() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 900; 
+        const MAX_WIDTH = 1000; // ขยายความละเอียดขึ้นเพื่อให้ OCR อ่านจุดทศนิยมได้ชัดเจน
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
