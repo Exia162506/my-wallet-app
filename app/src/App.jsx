@@ -11,7 +11,9 @@ import {
   signOut, 
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword 
+  createUserWithEmailAndPassword,
+  sendPasswordResetLink,
+  sendPasswordResetEmail
 } from "firebase/auth";
 import { getFirestore, collection, addDoc, query, where, onSnapshot, deleteDoc, doc } from "firebase/firestore";
 
@@ -64,10 +66,16 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
-  // สถานะสำหรับหน้า Login / Register ด้วย Email
-  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  // สถานะหน้า Auth (login, register, forgot, verify-otp)
+  const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'forgot', 'verify-otp'
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // ระบบ OTP
+  const [generatedOtp, setGeneratedOtp] = useState('');
+  const [inputOtp, setInputOtp] = useState('');
+  const [tempRegData, setTempRegData] = useState(null);
 
   // สถานะเปิด-ปิดเมนูโปรไฟล์
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -123,22 +131,76 @@ function App() {
     try {
       await signInWithPopup(auth, facebookProvider);
     } catch (error) {
-      alert("เกิดข้อผิดพลาด: กรุณาเปิดใช้งาน Facebook Login ใน Firebase Console ก่อนครับ");
+      alert("เกิดข้อผิดพลาด: กรุณาตรวจสอบการตั้งค่า Facebook Login ใน Firebase Console");
     }
   };
 
-  const handleEmailAuth = async (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    if (!authEmail || !authPassword) return;
     try {
-      if (isRegisterMode) {
-        await createUserWithEmailAndPassword(auth, authEmail, authPassword);
-        alert("✅ สร้างบัญชีสำเร็จและเข้าสู่ระบบแล้ว!");
-      } else {
-        await signInWithEmailAndPassword(auth, authEmail, authPassword);
-      }
+      await signInWithEmailAndPassword(auth, authEmail, authPassword);
+    } catch (error) {
+      alert("❌ เข้าสู่ระบบไม่สำเร็จ: อีเมลหรือรหัสผ่านไม่ถูกต้อง");
+    }
+  };
+
+  // ขั้นตอนที่ 1: กดสมัครสมาชิก -> ส่ง OTP จำลอง
+  const handleRegisterSubmit = (e) => {
+    e.preventDefault();
+    if (authPassword !== confirmPassword) {
+      alert("❌ รหัสผ่านทั้งสองครั้งไม่ตรงกัน!");
+      return;
+    }
+    if (authPassword.length < 6) {
+      alert("❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
+      return;
+    }
+
+    // สร้างรหัส OTP สุ่ม 6 หลัก
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    setGeneratedOtp(otp);
+    setTempRegData({ email: authEmail, password: authPassword });
+    
+    // แสดง OTP จำลองให้ผู้ใช้เห็น (หรือส่งเมลจริงผ่าน Firebase)
+    alert(`📱 ระบบได้ส่งรหัส OTP ไปยังอีเมลของคุณแล้ว\n\n🔑 รหัส OTP ทดสอบของคุณคือ: [ ${otp} ]`);
+    setAuthMode('verify-otp');
+  };
+
+  // ขั้นตอนที่ 2: ยืนยัน OTP เพื่อสร้างบัญชีจริงใน Firebase
+  const handleVerifyOtpSubmit = async (e) => {
+    e.preventDefault();
+    if (inputOtp !== generatedOtp) {
+      alert("❌ รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
+      return;
+    }
+
+    try {
+      await createUserWithEmailAndPassword(auth, tempRegData.email, tempRegData.password);
+      alert("✅ ยืนยัน OTP และสร้างบัญชีสำเร็จ!");
+      setAuthMode('login');
+      setInputOtp('');
+      setAuthEmail('');
+      setAuthPassword('');
+      setConfirmPassword('');
     } catch (error) {
       alert("❌ เกิดข้อผิดพลาด: " + error.message);
+      setAuthMode('register');
+    }
+  };
+
+  // ระบบลืมรหัสผ่านด้วย OTP / รีเซ็ตผ่านอีเมล Firebase
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!authEmail) {
+      alert("กรุณากรอกอีเมลของคุณก่อนครับ");
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, authEmail);
+      alert(`✅ ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมล ${authEmail} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องข้อความของคุณ`);
+      setAuthMode('login');
+    } catch (error) {
+      alert("❌ เกิดข้อผิดพลาด: ไม่พบอีเมลนี้ในระบบ");
     }
   };
 
@@ -269,7 +331,7 @@ function App() {
   const exportIncomeTotal = filteredExport.filter(t => t.Type === 'Income').reduce((a, b) => a + b.Amount, 0);
   const exportExpenseTotal = filteredExport.filter(t => t.Type === 'Expense').reduce((a, b) => a + b.Amount, 0);
 
-  // หน้าจอ Login / Register
+  // หน้าจอ Auth ทั้งหมด (Login, Register, Verify OTP, Forgot Password)
   if (!user) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '90vh', padding: '20px' }}>
@@ -277,59 +339,99 @@ function App() {
         <p style={{ color: '#aaa', marginBottom: '25px' }}>ระบบบัญชีรายรับ-รายจ่ายส่วนบุคคลบน Cloud</p>
         
         <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '25px' }}>
-          <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>
-            {isRegisterMode ? 'สร้างบัญชีใหม่' : 'เข้าสู่ระบบ'}
-          </h3>
+          
+          {/* 1. หน้าเข้าสู่ระบบ */}
+          {authMode === 'login' && (
+            <>
+              <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>เข้าสู่ระบบ</h3>
+              <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <input type="email" placeholder="อีเมลของคุณ" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required />
+                <input type="password" placeholder="รหัสผ่าน" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />
+                <div style={{ textAlign: 'right', marginTop: '-5px' }}>
+                  <span onClick={() => setAuthMode('forgot')} style={{ fontSize: '12px', color: '#aaa', cursor: 'pointer', textDecoration: 'underline' }}>ลืมรหัสผ่าน?</span>
+                </div>
+                <button type="submit" style={{ backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold' }}>เข้าสู่ระบบ</button>
+              </form>
+              <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                <span style={{ fontSize: '13px', color: '#aaa' }}>ยังไม่มีบัญชีใช่ไหม? </span>
+                <span onClick={() => { setAuthMode('register'); setAuthPassword(''); setConfirmPassword(''); }} style={{ fontSize: '13px', color: '#d4af37', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}>สร้างบัญชีใหม่</span>
+              </div>
+            </>
+          )}
 
-          <form onSubmit={handleEmailAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <input 
-              type="email" 
-              placeholder="อีเมลของคุณ" 
-              value={authEmail} 
-              onChange={(e) => setAuthEmail(e.target.value)} 
-              required 
-            />
-            <input 
-              type="password" 
-              placeholder="รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)" 
-              value={authPassword} 
-              onChange={(e) => setAuthPassword(e.target.value)} 
-              required 
-            />
-            <button type="submit" style={{ backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', marginTop: '5px' }}>
-              {isRegisterMode ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ'}
-            </button>
-          </form>
+          {/* 2. หน้าสมัครสมาชิก (ยืนยันรหัสผ่าน 2 รอบ) */}
+          {authMode === 'register' && (
+            <>
+              <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>สร้างบัญชีใหม่</h3>
+              <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <input type="email" placeholder="อีเมลของคุณ" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required />
+                <input type="password" placeholder="รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)" value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} required />
+                <input type="password" placeholder="ยืนยันรหัสผ่านอีกครั้ง" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required />
+                <button type="submit" style={{ backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', marginTop: '5px' }}>ถัดไป (รับรหัส OTP)</button>
+              </form>
+              <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                <span style={{ fontSize: '13px', color: '#aaa' }}>มีบัญชีอยู่แล้ว? </span>
+                <span onClick={() => setAuthMode('login')} style={{ fontSize: '13px', color: '#d4af37', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}>เข้าสู่ระบบที่นี่</span>
+              </div>
+            </>
+          )}
 
-          <div style={{ textAlign: 'center', marginTop: '15px' }}>
-            <span style={{ fontSize: '13px', color: '#aaa' }}>
-              {isRegisterMode ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชีใช่ไหม?'}{' '}
-            </span>
-            <span 
-              onClick={() => setIsRegisterMode(!isRegisterMode)} 
-              style={{ fontSize: '13px', color: '#d4af37', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}
-            >
-              {isRegisterMode ? 'เข้าสู่ระบบที่นี่' : 'สร้างบัญชีใหม่'}
-            </span>
-          </div>
+          {/* 3. หน้ากรอกรหัส OTP ยืนยันตัวตน */}
+          {authMode === 'verify-otp' && (
+            <>
+              <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>ยืนยันรหัส OTP</h3>
+              <p style={{ fontSize: '13px', color: '#aaa', textAlign: 'center', marginBottom: '15px' }}>
+                กรุณากรอกรหัส OTP 6 หลักที่ส่งไปยังอีเมล <strong>{authEmail}</strong>
+              </p>
+              <form onSubmit={handleVerifyOtpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <input type="text" placeholder="กรอกรหัส OTP 6 หลัก" maxLength="6" value={inputOtp} onChange={(e) => setInputOtp(e.target.value)} style={{ textAlign: 'center', fontSize: '20px', letterSpacing: '4px' }} required />
+                <button type="submit" style={{ backgroundColor: '#4CAF50', color: '#fff', fontWeight: 'bold', marginTop: '5px' }}>ยืนยันและสมัครสมาชิก</button>
+              </form>
+              <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                <span onClick={() => setAuthMode('register')} style={{ fontSize: '13px', color: '#aaa', cursor: 'pointer', textDecoration: 'underline' }}>← กลับไปแก้ไขข้อมูล</span>
+              </div>
+            </>
+          )}
 
-          <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: '#666' }}>
-            <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }}></div>
-            <span style={{ padding: '0 10px', fontSize: '12px' }}>หรือเชื่อมต่อผ่าน</span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }}></div>
-          </div>
+          {/* 4. หน้าลืมรหัสผ่าน (ขอ OTP / รีเซ็ตผ่านอีเมล) */}
+          {authMode === 'forgot' && (
+            <>
+              <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>กู้คืนรหัสผ่าน</h3>
+              <p style={{ fontSize: '13px', color: '#aaa', textAlign: 'center', marginBottom: '15px' }}>
+                กรอกอีเมลของคุณเพื่อรับลิงก์ / OTP สำหรับตั้งรหัสผ่านใหม่
+              </p>
+              <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <input type="email" placeholder="อีเมลที่ลงทะเบียนไว้" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required />
+                <button type="submit" style={{ backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', marginTop: '5px' }}>ส่งรหัสกู้คืน</button>
+              </form>
+              <div style={{ textAlign: 'center', marginTop: '15px' }}>
+                <span onClick={() => setAuthMode('login')} style={{ fontSize: '13px', color: '#d4af37', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}>← กลับไปหน้าเข้าสู่ระบบ</span>
+              </div>
+            </>
+          )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button onClick={handleGoogleLogin} style={{ padding: '12px', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#fff', color: '#000', border: 'none', fontWeight: '500' }}>
-              <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="google" style={{ width: '20px' }} />
-              ดำเนินการต่อด้วย Google
-            </button>
+          {authMode !== 'verify-otp' && authMode !== 'forgot' && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: '#666' }}>
+                <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }}></div>
+                <span style={{ padding: '0 10px', fontSize: '12px' }}>หรือเชื่อมต่อผ่าน</span>
+                <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }}></div>
+              </div>
 
-            <button onClick={handleFacebookLogin} style={{ padding: '12px', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#1877F2', color: '#fff', border: 'none', fontWeight: '500' }}>
-              <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="facebook" style={{ width: '20px', filter: 'brightness(0) invert(1)' }} />
-              ดำเนินการต่อด้วย Facebook
-            </button>
-          </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <button onClick={handleGoogleLogin} style={{ padding: '12px', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#fff', color: '#000', border: 'none', fontWeight: '500' }}>
+                  <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="google" style={{ width: '20px' }} />
+                  ดำเนินการต่อด้วย Google
+                </button>
+
+                <button onClick={handleFacebookLogin} style={{ padding: '12px', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#1877F2', color: '#fff', border: 'none', fontWeight: '500' }}>
+                  <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="facebook" style={{ width: '20px', filter: 'brightness(0) invert(1)' }} />
+                  ดำเนินการต่อด้วย Facebook
+                </button>
+              </div>
+            </>
+          )}
+
         </div>
       </div>
     );
