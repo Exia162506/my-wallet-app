@@ -42,18 +42,14 @@ const CATEGORIES = {
   Transfer: ['โอนย้ายเงินภายใน'] 
 };
 
+// ค่าเริ่มต้น (เพิ่ม accountNumber และ accountName)
 const DEFAULT_WALLETS = [
-  { id: 'Cash', name: 'เงินสด', color: '#d4af37', active: true, custom: false },
-  { id: 'KBank', name: 'กสิกรไทย (KBank)', color: '#138f2d', active: true, custom: false },
-  { id: 'SCB', name: 'ไทยพาณิชย์ (SCB)', color: '#4e2a84', active: true, custom: false },
-  { id: 'KTB', name: 'กรุงไทย (KTB)', color: '#00aeeef', active: true, custom: false },
-  { id: 'BBL', name: 'กรุงเทพ (BBL)', color: '#1e4598', active: true, custom: false },
-  { id: 'TrueMoney', name: 'TrueMoney', color: '#ff6600', active: true, custom: false },
-  { id: 'Krungsri', name: 'กรุงศรี (Krungsri)', color: '#fec43b', active: false, custom: false },
-  { id: 'TTB', name: 'ทีทีบี (ttb)', color: '#0050f0', active: false, custom: false },
-  { id: 'GSB', name: 'ออมสิน (GSB)', color: '#eb008b', active: false, custom: false },
-  { id: 'BAAC', name: 'ธ.ก.ส. (BAAC)', color: '#4b9b47', active: false, custom: false },
-  { id: 'UOB', name: 'ยูโอบี (UOB)', color: '#003b7a', active: false, custom: false }
+  { id: 'Cash', name: 'เงินสด', accountNumber: '-', accountName: '-', color: '#d4af37', active: true, custom: false },
+  { id: 'KBank', name: 'กสิกรไทย (KBank)', accountNumber: '', accountName: '', color: '#138f2d', active: true, custom: false },
+  { id: 'SCB', name: 'ไทยพาณิชย์ (SCB)', accountNumber: '', accountName: '', color: '#4e2a84', active: true, custom: false },
+  { id: 'KTB', name: 'กรุงไทย (KTB)', accountNumber: '', accountName: '', color: '#00aeeef', active: true, custom: false },
+  { id: 'BBL', name: 'กรุงเทพ (BBL)', accountNumber: '', accountName: '', color: '#1e4598', active: true, custom: false },
+  { id: 'TrueMoney', name: 'TrueMoney', accountNumber: '', accountName: '', color: '#ff6600', active: true, custom: false }
 ];
 
 const getWeekRange = (dateString) => {
@@ -83,15 +79,18 @@ function App() {
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
   const [wallets, setWallets] = useState(() => {
-    const saved = localStorage.getItem('my_wallet_settings_v2');
+    const saved = localStorage.getItem('my_wallet_settings_v3');
     if (saved) return JSON.parse(saved);
     return DEFAULT_WALLETS;
   });
 
+  // ฟอร์มสำหรับลงทะเบียนบัญชีใหม่
   const [newWalletName, setNewWalletName] = useState('');
+  const [newAccountName, setNewAccountName] = useState('');
+  const [newAccountNumber, setNewAccountNumber] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('my_wallet_settings_v2', JSON.stringify(wallets));
+    localStorage.setItem('my_wallet_settings_v3', JSON.stringify(wallets));
   }, [wallets]);
 
   const activeWallets = wallets.filter(w => w.active);
@@ -160,6 +159,7 @@ function App() {
     }
   }, [user]);
 
+  // ฟังก์ชันเพิ่มบัญชีที่ลงทะเบียนเลขบัญชี/ชื่อบัญชี
   const handleAddCustomWallet = (e) => {
     e.preventDefault();
     if (!newWalletName.trim()) return;
@@ -170,6 +170,8 @@ function App() {
     const newWallet = {
       id: 'custom_' + Date.now(),
       name: newWalletName.trim(),
+      accountName: newAccountName.trim() || '-',
+      accountNumber: newAccountNumber.trim() || '-',
       color: randomColor,
       active: true,
       custom: true
@@ -177,6 +179,8 @@ function App() {
 
     setWallets([...wallets, newWallet]);
     setNewWalletName('');
+    setNewAccountName('');
+    setNewAccountNumber('');
   };
 
   const handleDeleteCustomWallet = (id) => {
@@ -185,9 +189,13 @@ function App() {
     }
   };
 
+  // ระบบสแกน OCR อัจฉริยะ ตรวจสอบทั้งยอดเงิน และเทียบเลข/ชื่อบัญชีว่า เงินเข้า หรือ โอนออก
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
+      console.log("OCR Text:", text);
+
+      // 1. ดึงยอดเงิน
       const amountRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}/g;
       const amounts = text.match(amountRegex);
       let detectedAmount = '';
@@ -195,21 +203,41 @@ function App() {
         detectedAmount = amounts[amounts.length - 1].replace(/,/g, ''); 
       }
 
-      const lowerText = text.toLowerCase();
-      let detectedWallet = null;
-      if (lowerText.includes('kbank') || text.includes('กสิกร')) detectedWallet = 'กสิกรไทย (KBank)';
-      else if (lowerText.includes('scb') || text.includes('ไทยพาณิชย์')) detectedWallet = 'ไทยพาณิชย์ (SCB)';
-      else if (lowerText.includes('ktb') || text.includes('กรุงไทย')) detectedWallet = 'กรุงไทย (KTB)';
-      else if (lowerText.includes('bbl') || text.includes('กรุงเทพ')) detectedWallet = 'กรุงเทพ (BBL)';
-      else if (lowerText.includes('truemoney') || text.includes('ทรูมันนี่')) detectedWallet = 'TrueMoney';
-      else if (lowerText.includes('krungsri') || text.includes('กรุงศรี')) detectedWallet = 'กรุงศรี (Krungsri)';
+      // 2. ตรวจสอบธนาคารและเทียบกับบัญชีที่ผู้ใช้ลงทะเบียนไว้
+      let matchedWallet = null;
+      let detectedType = formData.type; // ค่าเดิม
+
+      for (let w of activeWallets) {
+        // เช็คจากชื่อธนาคาร หรือ เลขบัญชี หรือ ชื่อบัญชี ที่ผู้ใช้กรอกไว้
+        const isNameMatch = w.name && text.toLowerCase().includes(w.name.toLowerCase().split(' ')[0]);
+        const isAccNumMatch = w.accountNumber && w.accountNumber !== '-' && text.includes(w.accountNumber);
+        const isAccNameMatch = w.accountName && w.accountName !== '-' && text.includes(w.accountName);
+
+        if (isNameMatch || isAccNumMatch || isAccNameMatch) {
+          matchedWallet = w.name;
+          
+          // วิเคราะห์ว่าเป็นเงินเข้าหรือโอนออก โดยดูจากคีย์เวิร์ดใกล้เคียง
+          if (isAccNumMatch || isAccNameMatch) {
+            // ค้นหาตำแหน่งข้อความเพื่อดูว่าเป็นผู้รับหรือผู้โอน
+            const lowerText = text.toLowerCase();
+            // หากมีคำว่า "รับเงิน" หรือชื่อ/เลขบัญชีอยู่โซนผู้รับ ให้ตีเป็นรายรับ
+            if (lowerText.includes('รับเงิน') || lowerText.includes('ยอดเงินเข้า')) {
+              detectedType = 'Income';
+            } else {
+              detectedType = 'Expense';
+            }
+          }
+          break;
+        }
+      }
 
       setFormData(prev => ({
         ...prev,
         amount: detectedAmount || prev.amount,
-        wallet: detectedWallet && activeWallets.map(w=>w.name).includes(detectedWallet) ? detectedWallet : prev.wallet,
-        fromWallet: detectedWallet && prev.type === 'Transfer' && activeWallets.map(w=>w.name).includes(detectedWallet) ? detectedWallet : prev.fromWallet
+        type: detectedType,
+        wallet: matchedWallet && prev.type !== 'Transfer' ? matchedWallet : prev.wallet
       }));
+
     } catch (error) {
       console.error("OCR Error:", error);
     } finally {
@@ -639,47 +667,57 @@ function App() {
         </form>
       </div>
 
-      {/* Modal: ตั้งค่าบัญชีธนาคาร (แก้ไขฟอร์มเพิ่มบัญชีเป็นแนวตั้ง) */}
+      {/* Modal: ตั้งค่าบัญชีธนาคาร (รองรับการลงทะเบียนชื่อ/เลขบัญชี) */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ตั้งค่าบัญชีธนาคาร</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ตั้งค่าและลงทะเบียนบัญชี</h2>
               <button onClick={() => setShowSettingsModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}>✕</button>
             </div>
             
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-              {/* ฟอร์มเพิ่มบัญชีใหม่ (ปรับเป็นแนวตั้งเต็มความกว้าง แก้ปัญหา input หด) */}
-              <form onSubmit={handleAddCustomWallet} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+              {/* ฟอร์มลงทะเบียนบัญชีใหม่ */}
+              <form onSubmit={handleAddCustomWallet} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', backgroundColor: '#252525', padding: '15px', borderRadius: '10px', border: '1px solid #333' }}>
+                <h4 style={{ margin: '0 0 5px 0', color: '#d4af37', fontSize: '15px' }}>➕ ลงทะเบียนบัญชีใหม่สำหรับ OCR</h4>
                 <input 
                   type="text" 
-                  placeholder="พิมพ์ชื่อบัญชีหรือธนาคารใหม่ เช่น กระเป๋าเงินส่วนตัว..." 
+                  placeholder="ชื่อบัญชี/ธนาคาร (เช่น กสิกรส่วนตัว)" 
                   value={newWalletName} 
                   onChange={(e) => setNewWalletName(e.target.value)}
-                  style={{ 
-                    width: '100%',
-                    marginBottom: 0, 
-                    padding: '12px', 
-                    backgroundColor: '#2a2a2a', 
-                    border: '1px solid #444', 
-                    color: '#fff', 
-                    borderRadius: '8px', 
-                    outline: 'none',
-                    fontSize: '14px',
-                    boxSizing: 'border-box'
-                  }}
+                  style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #444', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}
+                  required
                 />
-                <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>+ เพิ่มบัญชี</button>
+                <input 
+                  type="text" 
+                  placeholder="ชื่อเจ้าของบัญชี (เช่น นายสมชาย ใจดี)" 
+                  value={newAccountName} 
+                  onChange={(e) => setNewAccountName(e.target.value)}
+                  style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #444', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+                <input 
+                  type="text" 
+                  placeholder="เลขที่บัญชี (เช่น 1234567890)" 
+                  value={newAccountNumber} 
+                  onChange={(e) => setNewAccountNumber(e.target.value)}
+                  style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #444', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+                <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer', marginTop: '5px' }}>บันทึกบัญชีนี้</button>
               </form>
 
-              <p style={{ color: '#aaa', fontSize: '14px', marginTop: 0, marginBottom: '15px' }}>เปิด/ปิด บัญชีที่ต้องการแสดง หรือลบบัญชีที่สร้างขึ้นเอง</p>
+              <p style={{ color: '#aaa', fontSize: '13px', marginTop: 0, marginBottom: '12px' }}>บัญชีทั้งหมดในระบบ (เปิด/ปิดการแสดงผลได้):</p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {wallets.map((w, index) => (
-                  <div key={w.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', backgroundColor: '#2a2a2a', borderRadius: '8px', borderLeft: `4px solid ${w.color}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ color: '#fff', fontSize: '15px' }}>{w.name}</span>
-                      {w.custom && <span style={{ fontSize: '10px', backgroundColor: '#444', color: '#d4af37', padding: '2px 6px', borderRadius: '4px' }}>สร้างเอง</span>}
+                  <div key={w.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 15px', backgroundColor: '#2a2a2a', borderRadius: '8px', borderLeft: `4px solid ${w.color}` }}>
+                    <div style={{ flex: 1, paddingRight: '10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: '#fff', fontSize: '15px', fontWeight: 'bold' }}>{w.name}</span>
+                        {w.custom && <span style={{ fontSize: '10px', backgroundColor: '#444', color: '#d4af37', padding: '2px 6px', borderRadius: '4px' }}>ลงทะเบียนแล้ว</span>}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#aaa', marginTop: '3px' }}>
+                        {w.accountName !== '-' ? `ชื่อ: ${w.accountName} ` : ''} {w.accountNumber !== '-' ? `| เลขบัญชี: ${w.accountNumber}` : ''}
+                      </div>
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       {w.custom && (
@@ -846,7 +884,7 @@ function App() {
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>วันที่</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>ประเภท</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>หมวดบัญชี / บันทึก</th>
-              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>สลิป</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' %>สลิป</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>จำนวนเงิน (บาท)</th>
             </tr>
           </thead>
