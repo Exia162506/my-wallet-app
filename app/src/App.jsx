@@ -118,6 +118,44 @@ function App() {
     }
   }, [user]);
 
+  // ฟังก์ชันประมวลผลไฟล์รูปภาพสลิป
+  const processFile = (file) => {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 400; 
+        const scaleSize = MAX_WIDTH / img.width;
+        canvas.width = MAX_WIDTH;
+        canvas.height = img.height * scaleSize;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        setFormData(prev => ({ ...prev, slip: canvas.toDataURL('image/jpeg', 0.7) }));
+        setSlipError(false);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // รองรับการกด Paste (Ctrl+V) รูปภาพสลิป
+  useEffect(() => {
+    const handlePaste = (e) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const blob = items[i].getAsFile();
+          if (blob) processFile(blob);
+        }
+      }
+    };
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, []);
+
   const handleGoogleLogin = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
@@ -215,24 +253,18 @@ function App() {
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 400; 
-        const scaleSize = MAX_WIDTH / img.width;
-        canvas.width = MAX_WIDTH;
-        canvas.height = img.height * scaleSize;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        setFormData(prev => ({ ...prev, slip: canvas.toDataURL('image/jpeg', 0.7) }));
-        setSlipError(false);
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
+    if (file) processFile(file);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
   };
 
   const removeSlip = () => {
@@ -518,18 +550,53 @@ function App() {
           <input type="number" name="amount" placeholder="จำนวนเงิน (บาท)" value={formData.amount} onChange={handleChange} required />
           <input type="text" name="note" placeholder="บันทึกย่อ (ถ้ามี)" value={formData.note} onChange={handleChange} />
           
-          <div style={{ marginTop: '10px', backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '8px', border: slipError ? '1px solid #ff4d4d' : '1px solid #444' }}>
+          {/* ส่วนอัปโหลดสลิปแบบใหม่: รองรับลากวาง, Ctrl+V, และแสดงคำว่า "อัปโหลดสลิป" ตรงกลาง */}
+          <div style={{ marginTop: '10px' }}>
             <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: slipError ? '#ff4d4d' : '#ccc', fontWeight: slipError ? 'bold' : 'normal' }}>
               {slipError ? '* กรุณาแนบสลิปก่อนบันทึก!' : 'แนบสลิป/หลักฐาน (บังคับ)'}
             </p>
-            <input type="file" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} style={{ padding: '0', backgroundColor: 'transparent', border: 'none', color: '#fff' }} />
-            {formData.slip && (
-              <div style={{ marginTop: '15px', position: 'relative', display: 'inline-block' }}>
-                <img src={formData.slip} alt="preview" style={{ maxHeight: '100px', borderRadius: '8px', border: '1px solid #444' }} />
-                <button type="button" onClick={removeSlip} style={{ position: 'absolute', top: '-10px', right: '-10px', backgroundColor: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>✕</button>
-              </div>
-            )}
+            
+            <div 
+              onDrop={handleDrop}
+              onDragOver={handleDragOver}
+              onClick={() => fileInputRef.current?.click()}
+              style={{
+                border: slipError ? '2px dashed #ff4d4d' : '2px dashed #444',
+                borderRadius: '10px',
+                padding: '20px',
+                textAlign: 'center',
+                backgroundColor: '#2a2a2a',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px'
+              }}
+            >
+              <input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageUpload} 
+                ref={fileInputRef} 
+                style={{ display: 'none' }} 
+              />
+              
+              {formData.slip ? (
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <img src={formData.slip} alt="preview" style={{ maxHeight: '110px', borderRadius: '8px', border: '1px solid #444' }} />
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: '-10px', right: '-10px', backgroundColor: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>✕</button>
+                </div>
+              ) : (
+                <>
+                  <div style={{ fontSize: '24px' }}>📥</div>
+                  <div style={{ color: '#d4af37', fontWeight: 'bold', fontSize: '15px' }}>อัปโหลดสลิป</div>
+                  <div style={{ fontSize: '12px', color: '#888' }}>ลากไฟล์มาวาง, คลิกเลือกไฟล์, หรือกด Ctrl+V เพื่อวางภาพ</div>
+                </>
+              )}
+            </div>
           </div>
+
           <button type="submit" style={{ marginTop: '15px' }}>บันทึกรายการ</button>
         </form>
       </div>
