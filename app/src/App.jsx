@@ -46,7 +46,7 @@ const DEFAULT_WALLETS = [
   { id: 'Cash', name: 'เงินสด', accountNumber: '-', accountName: '-', color: '#d4af37', active: true, custom: false },
   { id: 'KBank', name: 'กสิกรไทย (KBank)', accountNumber: '', accountName: '', color: '#138f2d', active: true, custom: false },
   { id: 'SCB', name: 'ไทยพาณิชย์ (SCB)', accountNumber: '', accountName: '', color: '#4e2a84', active: true, custom: false },
-  { id: 'KTB', name: 'กรุงไทย (KTB)', accountNumber: '', accountName: '', color: '#00aeeef', active: true, custom: false },
+  { id: 'KTB', name: 'กรุงไทย (KTB)', accountNumber: '', accountName: '', color: '#00aeef', active: true, custom: false },
   { id: 'BBL', name: 'กรุงเทพ (BBL)', accountNumber: '', accountName: '', color: '#1e4598', active: true, custom: false },
   { id: 'TrueMoney', name: 'TrueMoney Wallet', accountNumber: '', accountName: '', color: '#ff6600', active: true, custom: false },
   { id: 'Other', name: 'บัญชีอื่นๆ (Other)', accountNumber: '', accountName: '', color: '#607d8b', active: true, custom: false }
@@ -86,7 +86,6 @@ function App() {
     return DEFAULT_WALLETS;
   });
 
-  // สถานะสำหรับการลากสลับตำแหน่งบัญชี (Drag and Drop)
   const [draggedWalletIndex, setDraggedWalletIndex] = useState(null);
 
   const [newWalletName, setNewWalletName] = useState('');
@@ -163,7 +162,6 @@ function App() {
     }
   }, [user]);
 
-  // ฟังก์ชันรองรับการลากสลับตำแหน่งบัญชี
   const handleDragStart = (e, index) => {
     setDraggedWalletIndex(index);
     e.dataTransfer.effectAllowed = 'move';
@@ -629,7 +627,7 @@ function App() {
           รายรับ {currentMonthIncome.toLocaleString()} | รายจ่าย {currentMonthExpense.toLocaleString()} (เดือนนี้)
         </div>
 
-        {/* ส่วนแสดงบัญชี: 1 บัญชีอยู่ตรงกลาง, 2 บัญชีขึ้นไปจัดเรียงแถวละ 2 อย่างสมดุล */}
+        {/* ส่วนแสดงบัญชี: 1 บัญชีอยู่ตรงกลาง, 2 บัญชีขึ้นไปจัดเรียวแถวละ 2 อย่างสมดุล */}
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: activeWallets.length === 1 ? 'minmax(160px, 240px)' : 'repeat(2, minmax(0, 1fr))', 
@@ -745,7 +743,7 @@ function App() {
         </form>
       </div>
 
-      {/* Modal: ตั้งค่าบัญชีธนาคาร (รองรับการลากสลับตำแหน่งด้วย Drag and Drop) */}
+      {/* Modal: ตั้งค่าบัญชีธนาคาร */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
