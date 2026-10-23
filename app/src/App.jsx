@@ -622,33 +622,33 @@ function App() {
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky: บังคับกว้าง 100% และใช้ marginLeft: auto ดัน X ไปชิดขวาสุด */}
+            {/* ส่วนหัว Sticky: บังคับ position absolute ให้ปุ่ม X แปะอยู่มุมขวาเสมอ */}
             <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
               position: 'sticky', 
               top: 0, 
               backgroundColor: '#1e1e1e', 
               zIndex: 10, 
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '15px 20px', 
-              borderBottom: '1px solid #333'
+              padding: '15px 50px 15px 20px', 
+              borderBottom: '1px solid #333',
+              display: 'flex',
+              alignItems: 'center',
+              minHeight: '60px'
             }}>
               <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px' }}>ประวัติการใช้งาน</h2>
               <button 
                 onClick={() => setShowHistoryModal(false)} 
                 style={{ 
+                  position: 'absolute',
+                  top: '50%',
+                  right: '20px',
+                  transform: 'translateY(-50%)',
                   background: 'none', 
                   border: 'none', 
                   color: '#aaa', 
                   fontSize: '24px', 
                   cursor: 'pointer',
                   padding: '0',
-                  lineHeight: '1',
-                  marginLeft: 'auto',
-                  display: 'block'
+                  lineHeight: '1'
                 }}
               >
                 ✕
@@ -739,33 +739,33 @@ function App() {
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky: บังคับกว้าง 100% และใช้ marginLeft: auto ดัน X ไปชิดขวาสุด */}
+            {/* ส่วนหัว Sticky: บังคับ position absolute ให้ปุ่ม X แปะอยู่มุมขวาเสมอ */}
             <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center', 
               position: 'sticky', 
               top: 0, 
               backgroundColor: '#1e1e1e', 
               zIndex: 10, 
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '15px 20px', 
-              borderBottom: '1px solid #333'
+              padding: '15px 50px 15px 20px', 
+              borderBottom: '1px solid #333',
+              display: 'flex',
+              alignItems: 'center',
+              minHeight: '60px'
             }}>
               <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px' }}>ออกรายงาน PDF</h2>
               <button 
                 onClick={() => setShowExportModal(false)} 
                 style={{ 
+                  position: 'absolute',
+                  top: '50%',
+                  right: '20px',
+                  transform: 'translateY(-50%)',
                   background: 'none', 
                   border: 'none', 
                   color: '#aaa', 
                   fontSize: '24px', 
                   cursor: 'pointer',
                   padding: '0',
-                  lineHeight: '1',
-                  marginLeft: 'auto',
-                  display: 'block'
+                  lineHeight: '1'
                 }}
               >
                 ✕
