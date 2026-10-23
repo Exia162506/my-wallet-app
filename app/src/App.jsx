@@ -235,7 +235,6 @@ function App() {
     });
   };
 
-  // ระบบสแกน OCR โดยคงประเภทที่ผู้ใช้เลือกไว้เป็นหลัก (ไม่บังคับเปลี่ยนเป็นรายจ่ายทับ)
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
@@ -276,7 +275,7 @@ function App() {
       ];
 
       setFormData(prev => {
-        let detectedType = prev.type; // ใช้ค่าเดิมที่ผู้ใช้เลือกไว้ ไม่บังคับเปลี่ยนเป็นรายจ่าย
+        let detectedType = prev.type; 
         if (
           lowerText.includes('รับเงิน') || 
           lowerText.includes('ยอดเงินเข้า') || 
@@ -415,7 +414,6 @@ function App() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'type') {
-      // เอา slip: null ออก เพื่อไม่ให้สลิปหายเวลาสลับประเภทรายรับ/รายจ่าย
       setFormData(prev => ({ ...prev, type: value, category: CATEGORIES[value][0] }));
       setSlipError(false);
     } else {
@@ -674,8 +672,13 @@ function App() {
       <div className="card no-print" style={{ textAlign: 'center', padding: '20px 15px' }}>
         <p style={{ margin: 0, color: '#aaa' }}>ยอดเงินคงเหลือรวมทั้งหมด</p>
         <h1 style={{ margin: '10px 0', fontSize: '36px', color: '#d4af37' }}>฿{totalBalance.toLocaleString()}</h1>
-        <div style={{ fontSize: '12px', color: '#888', marginBottom: '15px' }}>
-          รายรับ {currentMonthIncome.toLocaleString()} | รายจ่าย {currentMonthExpense.toLocaleString()} (เดือนนี้)
+        
+        {/* ส่วนแสดงรายรับ (สีเขียว) และรายจ่าย (สีแดง) พร้อมย้าย "(เดือนนี้)" มาไว้ข้างล่าง */}
+        <div style={{ fontSize: '13px', marginBottom: '15px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+          <div>
+            รายรับ <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{currentMonthIncome.toLocaleString()}</span> | รายจ่าย <span style={{ color: '#ff4d4d', fontWeight: 'bold' }}>{currentMonthExpense.toLocaleString()}</span>
+          </div>
+          <div style={{ fontSize: '11px', color: '#888' }}>(เดือนนี้)</div>
         </div>
 
         {/* ส่วนแสดงบัญชี: 1 บัญชีอยู่ตรงกลาง, 2 บัญชีขึ้นไปจัดเรียงแถวละ 2 อย่างสมดุล */}
