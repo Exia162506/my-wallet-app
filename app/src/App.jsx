@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './index.css';
 
-// นำเข้า Tesseract สำหรับระบบสแกนสลิปอัตโนมัติ
+// นำเข้า Tesseract (รองรับไทย + อังกฤษ เพื่อให้อ่านคำว่า รับ/เข้า และชื่อบัญชีได้)
 import Tesseract from 'tesseract.js';
 
 // นำเข้าโมดูลของ Firebase
@@ -186,27 +186,25 @@ function App() {
     }
   };
 
-  // ปรับปรุงการสแกน OCR ให้เน้นหายอดเงินที่มีทศนิยม .xx เป็นหลักก่อนเสมอเพื่อความแม่นยำ
+  // ระบบสแกน OCR รองรับทั้งภาษาไทยและอังกฤษ พร้อมเช็คคำว่า รับ/เข้า เพื่อปรับเป็นรายรับอัตโนมัติ
   const scanSlipOCR = async (imageSrc) => {
     try {
-      const { data: { text } } = await Tesseract.recognize(imageSrc, 'eng');
+      const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
       console.log("OCR Extracted Text:", text);
 
       let detectedAmount = '';
 
-      // 1. ค้นหายอดเงินที่มีทศนิยม 2 ตำแหน่งก่อน (เช่น 114.00, 50.25)
+      // ค้นหายอดเงินที่มีทศนิยม .xx ก่อน
       const decimalRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2}/g;
       const decimalMatches = text.match(decimalRegex);
 
       if (decimalMatches && decimalMatches.length > 0) {
-        // กรองเอาตัวเลขที่สมเหตุสมผล (มากกว่า 0 และไม่เกิน 1,000,000)
         const validAmounts = decimalMatches.map(m => m.replace(/,/g, '')).filter(num => Number(num) > 0 && Number(num) < 1000000);
         if (validAmounts.length > 0) {
-          detectedAmount = validAmounts[0]; // เลือกยอดแรกที่มีทศนิยม (มักจะเป็นยอดโอนหลักบนสลิป)
+          detectedAmount = validAmounts[0]; 
         }
       }
 
-      // 2. ถ้าไม่เจอแบบมีทศนิยม ค่อยลองหาตัวเลขทั่วไป
       if (!detectedAmount) {
         const generalRegex = /\d+/g;
         const generalMatches = text.match(generalRegex);
@@ -219,7 +217,20 @@ function App() {
       }
 
       let matchedWallet = null;
-      let detectedType = formData.type; 
+      let detectedType = 'Expense'; // ค่าเริ่มต้นเป็นรายจ่าย
+
+      // ตรวจสอบคำว่า "รับ", "เข้า", "receive", "in" บนสลิป เพื่อระบุว่าเป็นรายรับ
+      const lowerText = text.toLowerCase();
+      if (
+        lowerText.includes('รับเงิน') || 
+        lowerText.includes('ยอดเงินเข้า') || 
+        lowerText.includes('รับโอน') || 
+        lowerText.includes('receive') || 
+        lowerText.includes('transfer in') ||
+        lowerText.includes('โอนเงินสำเร็จ') // หรือเช็คว่าบัญชีเราเป็นผู้รับ
+      ) {
+        detectedType = 'Income';
+      }
 
       for (let w of activeWallets) {
         const isNameMatch = w.name && text.toLowerCase().includes(w.name.toLowerCase().split(' ')[0]);
@@ -228,14 +239,6 @@ function App() {
 
         if (isNameMatch || isAccNumMatch || isAccNameMatch) {
           matchedWallet = w.name;
-          if (isAccNumMatch || isAccNameMatch) {
-            const lowerText = text.toLowerCase();
-            if (lowerText.includes('receive') || lowerText.includes('in') || lowerText.includes('รับ') || lowerText.includes('เข้า')) {
-              detectedType = 'Income';
-            } else {
-              detectedType = 'Expense';
-            }
-          }
           break;
         }
       }
@@ -244,6 +247,7 @@ function App() {
         ...prev,
         amount: detectedAmount || prev.amount,
         type: detectedType,
+        category: CATEGORIES[detectedType][0], // ปรับหมวดหมู่ให้ตรงกับประเภทอัตโนมัติ
         wallet: matchedWallet && prev.type !== 'Transfer' ? matchedWallet : prev.wallet
       }));
 
@@ -262,7 +266,7 @@ function App() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1000; // ขยายความละเอียดขึ้นเพื่อให้ OCR อ่านจุดทศนิยมได้ชัดเจน
+        const MAX_WIDTH = 1000; 
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
