@@ -537,7 +537,6 @@ function App() {
         <div style={{ fontSize: '12px', color: '#888', marginBottom: '10px' }}>
           สรุปยอดเดือนปัจจุบัน ({new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })})
         </div>
-        {/* ปรับแต่งส่วนแสดงรายรับรวมและใช้ไปแล้ว ให้ขยับเข้าหากันและใส่กรอบ */}
         <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #333' }}>
           <div style={{ flex: 1, maxWidth: '160px', padding: '10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '8px', textAlign: 'center' }}>
             <p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>รายรับรวม</p>
@@ -617,12 +616,12 @@ function App() {
         </form>
       </div>
 
-      {/* Modal / Popup: ประวัติการใช้งาน (พร้อมปุ่ม X วงกลมสีแดงแบบ Sticky มุมขวาบน) */}
+      {/* Modal / Popup: ประวัติการใช้งาน (เอาวงกลมสีแดงออก ใช้ปุ่มปิดแบบข้อความ/ไอคอนสะอาดตา) */}
       {showHistoryModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky สำหรับประวัติการใช้งาน */}
+            {/* ส่วนหัว Sticky พร้อมปุ่ม X แบบไม่มีวงกลมสีแดง */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -640,19 +639,12 @@ function App() {
               <button 
                 onClick={() => setShowHistoryModal(false)} 
                 style={{ 
-                  backgroundColor: '#ff4d4d', 
-                  color: '#fff', 
+                  background: 'none', 
                   border: 'none', 
-                  borderRadius: '50%', 
-                  width: '32px', 
-                  height: '32px', 
-                  fontSize: '16px', 
-                  fontWeight: 'bold', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
+                  color: '#aaa', 
+                  fontSize: '22px', 
                   cursor: 'pointer',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+                  padding: '0 5px'
                 }}
               >
                 ✕
@@ -736,12 +728,12 @@ function App() {
         </div>
       )}
 
-      {/* Modal / Popup: สรุป PDF (พร้อมปุ่ม X วงกลมสีแดงแบบ Sticky มุมขวาบน) */}
+      {/* Modal / Popup: สรุป PDF (เอาวงกลมสีแดงออก ใช้ปุ่มปิดแบบข้อความ/ไอคอนสะอาดตา) */}
       {showExportModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky สำหรับออกรายงาน PDF */}
+            {/* ส่วนหัว Sticky พร้อมปุ่ม X แบบไม่มีวงกลมสีแดง */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -759,19 +751,12 @@ function App() {
               <button 
                 onClick={() => setShowExportModal(false)} 
                 style={{ 
-                  backgroundColor: '#ff4d4d', 
-                  color: '#fff', 
+                  background: 'none', 
                   border: 'none', 
-                  borderRadius: '50%', 
-                  width: '32px', 
-                  height: '32px', 
-                  fontSize: '16px', 
-                  fontWeight: 'bold', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  justifyContent: 'center', 
+                  color: '#aaa', 
+                  fontSize: '22px', 
                   cursor: 'pointer',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+                  padding: '0 5px'
                 }}
               >
                 ✕
