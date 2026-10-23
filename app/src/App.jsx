@@ -622,7 +622,7 @@ function App() {
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky กำหนด width 100% ให้ปุ่ม X ชิดขวาบนสุดพอดี */}
+            {/* ส่วนหัว Sticky ใช้ whiteSpace: nowrap และ flex-shrink เพื่อให้ปุ่ม X อยู่ขวาบนสุดเสมอ */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -636,7 +636,7 @@ function App() {
               padding: '15px 20px', 
               borderBottom: '1px solid #333'
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px' }}>ประวัติการใช้งาน</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', whiteSpace: 'nowrap' }}>ประวัติการใช้งาน</h2>
               <button 
                 onClick={() => setShowHistoryModal(false)} 
                 style={{ 
@@ -648,7 +648,8 @@ function App() {
                   padding: '0',
                   lineHeight: '1',
                   display: 'flex',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  flexShrink: 0
                 }}
               >
                 ✕
@@ -739,7 +740,7 @@ function App() {
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky กำหนด width 100% ให้ปุ่ม X ชิดขวาบนสุดพอดี */}
+            {/* ส่วนหัว Sticky ใช้ whiteSpace: nowrap และ flex-shrink เพื่อให้ปุ่ม X อยู่ขวาบนสุดเสมอ */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -753,7 +754,7 @@ function App() {
               padding: '15px 20px', 
               borderBottom: '1px solid #333'
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px' }}>ออกรายงาน PDF</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', whiteSpace: 'nowrap' }}>ออกรายงาน PDF</h2>
               <button 
                 onClick={() => setShowExportModal(false)} 
                 style={{ 
@@ -765,7 +766,8 @@ function App() {
                   padding: '0',
                   lineHeight: '1',
                   display: 'flex',
-                  alignItems: 'center'
+                  alignItems: 'center',
+                  flexShrink: 0
                 }}
               >
                 ✕
