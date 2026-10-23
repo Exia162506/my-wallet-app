@@ -54,6 +54,9 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
+  // สถานะเปิด-ปิดเมนูโปรไฟล์
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+
   // ระบบเช็กข้อผิดพลาดของการไม่อัปโหลดสลิป
   const [slipError, setSlipError] = useState(false);
 
@@ -258,12 +261,50 @@ function App() {
         `}
       </style>
 
+      {/* Header พร้อมเมนูรูปโปรไฟล์ */}
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#1e1e1e', padding: '10px 20px', borderRadius: '12px' }}>
         <h2 className="text-gold" style={{ margin: 0 }}>My Wallet</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <button onClick={() => setShowExportModal(true)} style={{ backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>📄 สรุป PDF</button>
-          <img src={user.photoURL} alt="profile" style={{ width: '35px', height: '35px', borderRadius: '50%' }} referrerPolicy="no-referrer" />
-          <button onClick={handleLogout} style={{ padding: '8px 12px', fontSize: '12px', backgroundColor: '#333', color: '#ff4d4d', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>ออก</button>
+        
+        <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
+          {/* รูปโปรไฟล์ กดเพื่อเปิดเมนู */}
+          <div onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <img src={user.photoURL} alt="profile" style={{ width: '38px', height: '38px', borderRadius: '50%', border: '2px solid #d4af37' }} referrerPolicy="no-referrer" />
+          </div>
+
+          {/* เมนูดรอปดาวน์โปรไฟล์ */}
+          {showProfileMenu && (
+            <div style={{
+              position: 'absolute', top: '50px', right: '0',
+              backgroundColor: '#2a2a2a', border: '1px solid #444',
+              borderRadius: '8px', width: '180px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+              zIndex: 1000, overflow: 'hidden'
+            }}>
+              <div 
+                onClick={() => { setShowExportModal(true); setShowProfileMenu(false); }} 
+                style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                📄 สรุป PDF
+              </div>
+              <div 
+                onClick={() => { alert('⚙️ เมนูตั้งค่า: กำลังจะมาในอัปเดตหน้าครับ!'); setShowProfileMenu(false); }} 
+                style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                ⚙️ ตั้งค่า
+              </div>
+              <div 
+                onClick={() => { setShowProfileMenu(false); handleLogout(); }} 
+                style={{ padding: '12px 15px', color: '#ff4d4d', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                🚪 ออกจากระบบ
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
@@ -401,7 +442,7 @@ function App() {
         </div>
       )}
 
-      {/* ส่วนที่จะถูกพิมพ์ลง PDF (เพิ่มคอลัมน์สลิป) */}
+      {/* ส่วนที่จะถูกพิมพ์ลง PDF */}
       <div className="print-only" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
         <h1 style={{ textAlign: 'center', margin: '0 0 10px 0', fontSize: '24px' }}>สรุปรายการบัญชี My Wallet</h1>
         <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>ตั้งแต่วันที่ {exportStart ? new Date(exportStart).toLocaleDateString('th-TH') : '-'} ถึง {exportEnd ? new Date(exportEnd).toLocaleDateString('th-TH') : '-'}</p>
