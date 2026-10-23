@@ -42,15 +42,32 @@ const CATEGORIES = {
   Transfer: ['โอนย้ายเงินภายใน'] 
 };
 
-// บัญชีหลัก และ "บัญชีอื่นๆ" สำหรับรวบรวมธนาคารอื่นๆ ทั้งหมดในประเทศไทย
+// รายชื่อธนาคารและสถาบันการเงินทั้งหมดในประเทศไทย สำหรับใส่ในดรอปดาวน์
+const THAI_BANKS = [
+  { name: 'กสิกรไทย (KBank)', color: '#138f2d' },
+  { name: 'ไทยพาณิชย์ (SCB)', color: '#4e2a84' },
+  { name: 'กรุงไทย (KTB)', color: '#00aeef' },
+  { name: 'กรุงเทพ (BBL)', color: '#1e4598' },
+  { name: 'กรุงศรีอยุธยา (Krungsri)', color: '#fec43b' },
+  { name: 'ทีทีบี (ttb)', color: '#0050f0' },
+  { name: 'ออมสิน (GSB)', color: '#eb008b' },
+  { name: 'ธ.ก.ส. (BAAC)', color: '#4b9b47' },
+  { name: 'ธอส. (GHBank)', color: '#ff6f00' },
+  { name: 'ยูโอบี (UOB)', color: '#003b7a' },
+  { name: 'ซีไอเอ็มบี ไทย (CIMB)', color: '#7a0010' },
+  { name: 'เกียรตินาคินภัทร (KKP)', color: '#1a237e' },
+  { name: 'ทิสโก้ (TISCO)', color: '#004d40' },
+  { name: 'แลนด์ แอนด์ เฮ้าส์ (LH Bank)', color: '#00838f' },
+  { name: 'ไทยเครดิต (Thai Credit)', color: '#b71c1c' },
+  { name: 'TrueMoney Wallet', color: '#ff6600' },
+  { name: 'บัญชีอื่นๆ (Other)', color: '#607d8b' }
+];
+
 const DEFAULT_WALLETS = [
   { id: 'Cash', name: 'เงินสด', accountNumber: '-', accountName: '-', color: '#d4af37', active: true, custom: false },
   { id: 'KBank', name: 'กสิกรไทย (KBank)', accountNumber: '', accountName: '', color: '#138f2d', active: true, custom: false },
   { id: 'SCB', name: 'ไทยพาณิชย์ (SCB)', accountNumber: '', accountName: '', color: '#4e2a84', active: true, custom: false },
-  { id: 'KTB', name: 'กรุงไทย (KTB)', accountNumber: '', accountName: '', color: '#00aeef', active: true, custom: false },
-  { id: 'BBL', name: 'กรุงเทพ (BBL)', accountNumber: '', accountName: '', color: '#1e4598', active: true, custom: false },
-  { id: 'TrueMoney', name: 'TrueMoney Wallet', accountNumber: '', accountName: '', color: '#ff6600', active: true, custom: false },
-  { id: 'Other', name: 'บัญชีอื่นๆ (Other)', accountNumber: '', accountName: '', color: '#607d8b', active: true, custom: false }
+  { id: 'TrueMoney', name: 'TrueMoney Wallet', accountNumber: '', accountName: '', color: '#ff6600', active: true, custom: false }
 ];
 
 const getWeekRange = (dateString) => {
@@ -82,7 +99,7 @@ function App() {
   const [customAlert, setCustomAlert] = useState(null);
 
   const [wallets, setWallets] = useState(() => {
-    const saved = localStorage.getItem('my_wallet_settings_v7');
+    const saved = localStorage.getItem('my_wallet_settings_v8');
     if (saved) return JSON.parse(saved);
     return DEFAULT_WALLETS;
   });
@@ -94,7 +111,7 @@ function App() {
   const [newAccountNumber, setNewAccountNumber] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('my_wallet_settings_v7', JSON.stringify(wallets));
+    localStorage.setItem('my_wallet_settings_v8', JSON.stringify(wallets));
   }, [wallets]);
 
   const activeWallets = wallets.filter(w => w.active);
@@ -185,17 +202,17 @@ function App() {
 
   const handleAddCustomWallet = (e) => {
     e.preventDefault();
-    if (!newWalletName.trim()) return;
+    if (!newWalletName) return;
 
-    const colors = ['#00acc1', '#ab47bc', '#ef5350', '#ffa726', '#26a69a', '#7e57c2'];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+    const selectedBank = THAI_BANKS.find(b => b.name === newWalletName);
+    const color = selectedBank ? selectedBank.color : '#d4af37';
 
     const newWallet = {
       id: 'custom_' + Date.now(),
-      name: newWalletName.trim(),
+      name: newWalletName,
       accountName: newAccountName.trim() || '-',
       accountNumber: newAccountNumber.trim() || '-',
-      color: randomColor,
+      color: color,
       active: true,
       custom: true
     };
@@ -212,7 +229,7 @@ function App() {
     }
   };
 
-  // ระบบสแกน OCR ครอบคลุมทุกธนาคารในไทย และส่งเข้า "บัญชีอื่นๆ (Other)" อัตโนมัติหากไม่ตรงกับบัญชีหลัก
+  // ระบบสแกน OCR ครอบคลุมทุกธนาคารในไทย
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
@@ -256,7 +273,6 @@ function App() {
         detectedType = 'Income';
       }
 
-      // รายชื่อธนาคารและสถาบันการเงินทั้งหมดในประเทศไทย
       const allThaiBankKeywords = [
         'กรุงศรี', 'krungsri', 'อยุธยา', 'ttb', 'ทีทีบี', 'ทหารไทย', 'ธนชาต', 
         'ออมสิน', 'gsb', 'ธ.ก.ส', 'baac', 'ธอส', 'ghb', 'ghbank', 
@@ -751,7 +767,7 @@ function App() {
         </form>
       </div>
 
-      {/* Modal: ตั้งค่าบัญชีธนาคาร */}
+      {/* Modal: ตั้งค่าบัญชีธนาคาร (มีดรอปดาวน์เลือกธนาคารทั้งหมดในไทย) */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
@@ -762,15 +778,18 @@ function App() {
             
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <form onSubmit={handleAddCustomWallet} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', backgroundColor: '#252525', padding: '15px', borderRadius: '10px', border: '1px solid #333' }}>
-                <h4 style={{ margin: '0 0 5px 0', color: '#d4af37', fontSize: '15px' }}>➕ ลงทะเบียนบัญชีใหม่สำหรับ OCR</h4>
-                <input 
-                  type="text" 
-                  placeholder="ชื่อบัญชี/ธนาคาร (เช่น กสิกรส่วนตัว)" 
+                <h4 style={{ margin: '0 0 5px 0', color: '#d4af37', fontSize: '15px' }}>➕ เพิ่มบัญชีธนาคารใหม่</h4>
+                <select 
                   value={newWalletName} 
                   onChange={(e) => setNewWalletName(e.target.value)}
                   style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #444', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}
                   required
-                />
+                >
+                  <option value="" disabled>-- เลือกธนาคาร / บัญชี --</option>
+                  {THAI_BANKS.map((bank, idx) => (
+                    <option key={idx} value={bank.name}>{bank.name}</option>
+                  ))}
+                </select>
                 <input 
                   type="text" 
                   placeholder="ชื่อเจ้าของบัญชี (เช่น นายสมชาย ใจดี)" 
