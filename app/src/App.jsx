@@ -61,6 +61,7 @@ function App() {
   const [user, setUser] = useState(null); 
   const [transactions, setTransactions] = useState([]);
   const [viewMode, setViewMode] = useState('month'); 
+  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().split('T')[0]); // สถานะสำหรับเลือกวันในโหมดรายวัน
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [showHistory, setShowHistory] = useState(false);
   const [viewSlipImage, setViewSlipImage] = useState(null);
@@ -316,7 +317,12 @@ function App() {
     }));
   };
 
-  const groupedTransactions = transactions.reduce((acc, curr) => {
+  // กรองข้อมูลตามโหมดการแสดงผล (ถ้าเป็นรายวัน ให้กรองเฉพาะวันที่เลือก)
+  const transactionsToDisplay = viewMode === 'day' 
+    ? transactions.filter(t => t.Date === selectedDay)
+    : transactions;
+
+  const groupedTransactions = transactionsToDisplay.reduce((acc, curr) => {
     let key = '';
     if (viewMode === 'day') key = getDayName(curr.Date);
     else if (viewMode === 'week') key = getWeekRange(curr.Date);
@@ -550,7 +556,6 @@ function App() {
           <input type="number" name="amount" placeholder="จำนวนเงิน (บาท)" value={formData.amount} onChange={handleChange} required />
           <input type="text" name="note" placeholder="บันทึกย่อ (ถ้ามี)" value={formData.note} onChange={handleChange} />
           
-          {/* ส่วนอัปโหลดสลิปแบบใหม่: รองรับลากวาง, Ctrl+V, และแสดงคำว่า "อัปโหลดสลิป" ตรงกลาง */}
           <div style={{ marginTop: '10px' }}>
             <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: slipError ? '#ff4d4d' : '#ccc', fontWeight: slipError ? 'bold' : 'normal' }}>
               {slipError ? '* กรุณาแนบสลิปก่อนบันทึก!' : 'แนบสลิป/หลักฐาน (บังคับ)'}
@@ -608,12 +613,26 @@ function App() {
         
         {showHistory && (
           <div style={{ marginTop: '20px' }}>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
               <button type="button" style={tabStyle('week')} onClick={() => setViewMode('week')}>รายสัปดาห์</button>
               <button type="button" style={tabStyle('month')} onClick={() => setViewMode('month')}>รายเดือน</button>
             </div>
-            {sortedGroups.length === 0 && <p style={{ textAlign: 'center', color: '#888' }}>ยังไม่มีรายการ</p>}
+
+            {/* ช่องเลือกวันที่เฉพาะเมื่ออยู่ในโหมดรายวัน */}
+            {viewMode === 'day' && (
+              <div style={{ marginBottom: '15px', backgroundColor: '#2a2a2a', padding: '12px', borderRadius: '8px', border: '1px solid #444' }}>
+                <label style={{ fontSize: '13px', color: '#aaa', display: 'block', marginBottom: '5px' }}>📅 เลือกวันที่ต้องการดู:</label>
+                <input 
+                  type="date" 
+                  value={selectedDay} 
+                  onChange={(e) => setSelectedDay(e.target.value)} 
+                  style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #555', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}
+                />
+              </div>
+            )}
+
+            {sortedGroups.length === 0 && <p style={{ textAlign: 'center', color: '#888' }}>ยังไม่มีรายการในวันนี้</p>}
             {sortedGroups.map(groupKey => {
               const isOpen = expandedGroups[groupKey] !== false; 
               return (
