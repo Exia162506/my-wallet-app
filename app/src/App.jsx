@@ -600,7 +600,8 @@ function App() {
               {formData.slip ? (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                   <img src={formData.slip} alt="preview" style={{ maxHeight: '110px', borderRadius: '8px', border: '1px solid #444' }} />
-                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: '-10px', right: '-10px', backgroundColor: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>✕</button>
+                  {/* ปุ่ม X อยู่ที่มุมขวาบนของรูปสลิปโดยไม่มีวงกลมสีแดง */}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#333', color: '#fff', border: '1px solid #555', borderRadius: '50%', width: '22px', height: '22px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                 </div>
               ) : (
                 <>
@@ -621,7 +622,7 @@ function App() {
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky จัดให้อยู่กึ่งกลางแนวตั้งสมดุลกัน */}
+            {/* ส่วนหัว Sticky จัดให้ X อยู่ขวาบนสุดพอดี */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -644,7 +645,7 @@ function App() {
                   color: '#aaa', 
                   fontSize: '22px', 
                   cursor: 'pointer',
-                  padding: '0 5px',
+                  padding: '0',
                   lineHeight: '1',
                   display: 'flex',
                   alignItems: 'center'
@@ -736,7 +737,7 @@ function App() {
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky จัดให้อยู่กึ่งกลางแนวตั้งสมดุลกัน */}
+            {/* ส่วนหัว Sticky จัดให้ X อยู่ขวาบนสุดพอดี */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -759,7 +760,7 @@ function App() {
                   color: '#aaa', 
                   fontSize: '22px', 
                   cursor: 'pointer',
-                  padding: '0 5px',
+                  padding: '0',
                   lineHeight: '1',
                   display: 'flex',
                   alignItems: 'center'
