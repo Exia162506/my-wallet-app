@@ -17,17 +17,15 @@ const firebaseConfig = {
   measurementId: "G-BVLN2P331Y"
 };
 
-// เริ่มต้นระบบ Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
-// อัปเดตหมวดหมู่ตามที่คุณต้องการ
 const CATEGORIES = {
-  Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'บิล/ค่าน้ำค่าไฟ', 'โอนไปบัญชีอื่น', 'อื่นๆ'], // เปลี่ยน 'สุขภาพ' เป็น 'โอนไปบัญชีอื่น'
+  Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'บิล/ค่าน้ำค่าไฟ', 'โอนไปบัญชีอื่น', 'อื่นๆ'],
   Income: ['เงินเดือน', 'รายได้เสริม', 'โบนัส', 'เงินคืน / ปันผล', 'อื่นๆ (รายรับ)'],
-  Transfer: ['โอนบัญชีอื่น', 'เงินออม', 'อื่นๆ (โอน)'] // เพิ่มหมวดหมู่ใหม่สำหรับการโอนที่ยอดไม่ลด
+  Transfer: ['โอนบัญชีอื่น', 'เงินออม', 'อื่นๆ (โอน)'] 
 };
 
 const getWeekRange = (dateString) => {
@@ -56,6 +54,11 @@ function App() {
   const [showHistory, setShowHistory] = useState(false);
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
+  // ระบบ Export PDF
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportStart, setExportStart] = useState('');
+  const [exportEnd, setExportEnd] = useState('');
+
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -67,7 +70,6 @@ function App() {
     slip: null 
   });
 
-  // ตรวจสอบว่าผู้ใช้ล็อกอินอยู่หรือไม่
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -75,7 +77,6 @@ function App() {
     return () => unsubscribe();
   }, []);
 
-  // ดึงข้อมูลจาก Cloud เฉพาะของคนที่ล็อกอิน
   useEffect(() => {
     if (user) {
       const q = query(collection(db, "transactions"), where("userId", "==", user.uid));
@@ -93,26 +94,18 @@ function App() {
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
-      console.error("Login failed", error);
-      alert("เกิดข้อผิดพลาดในการล็อกอิน กรุณาลองใหม่ครับ");
+      alert("เกิดข้อผิดพลาดในการล็อกอิน");
     }
   };
 
   const handleLogout = () => {
-    if(window.confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) {
-      signOut(auth);
-    }
+    if(window.confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) signOut(auth);
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'type') {
-      setFormData({ 
-        ...formData, 
-        type: value, 
-        category: CATEGORIES[value][0],
-        slip: null
-      });
+      setFormData({ ...formData, type: value, category: CATEGORIES[value][0], slip: null });
       if (fileInputRef.current) fileInputRef.current.value = "";
     } else {
       setFormData({ ...formData, [name]: value });
@@ -122,7 +115,6 @@ function App() {
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -134,8 +126,7 @@ function App() {
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        const compressedBase64 = canvas.toDataURL('image/jpeg', 0.7);
-        setFormData(prev => ({ ...prev, slip: compressedBase64 }));
+        setFormData(prev => ({ ...prev, slip: canvas.toDataURL('image/jpeg', 0.7) }));
       };
       img.src = event.target.result;
     };
@@ -150,6 +141,12 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.amount || !user) return;
+    
+    // บังคับแนบสลิป
+    if (!formData.slip) {
+      alert("⚠️ กรุณาแนบสลิปหรือหลักฐานการทำรายการทุกครั้งครับ");
+      return;
+    }
     
     const newTransaction = {
       userId: user.uid, 
@@ -166,26 +163,21 @@ function App() {
       await addDoc(collection(db, "transactions"), newTransaction); 
       setFormData({ ...formData, amount: '', note: '', slip: null }); 
       if (fileInputRef.current) fileInputRef.current.value = "";
+      alert("✅ บันทึกรายการสำเร็จ!");
     } catch (error) {
-      console.error("Error adding document: ", error);
       alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     }
   };
 
   const handleDelete = async (id) => {
     if(window.confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
-      try {
-        await deleteDoc(doc(db, "transactions", id)); 
-      } catch (error) {
-        console.error("Error deleting document: ", error);
-      }
+      await deleteDoc(doc(db, "transactions", id)); 
     }
   };
 
   const toggleGroup = (groupKey) => {
     setExpandedGroups(prev => ({
-      ...prev,
-      [groupKey]: prev[groupKey] === undefined ? false : !prev[groupKey] 
+      ...prev, [groupKey]: prev[groupKey] === undefined ? false : !prev[groupKey] 
     }));
   };
 
@@ -195,50 +187,41 @@ function App() {
     else if (viewMode === 'week') key = getWeekRange(curr.Date);
     else if (viewMode === 'month') key = getMonthName(curr.Date);
 
-    if (!acc[key]) {
-      acc[key] = { items: [], totalIncome: 0, totalExpense: 0, sortDate: curr.Date };
-    }
+    if (!acc[key]) acc[key] = { items: [], totalIncome: 0, totalExpense: 0, sortDate: curr.Date };
     acc[key].items.push(curr);
     
-    // คำนวณรายรับ-รายจ่ายของกลุ่มนั้น (ไม่นับโอนเงิน Type: Transfer)
     if (curr.Type === 'Income') acc[key].totalIncome += curr.Amount;
     else if (curr.Type === 'Expense') acc[key].totalExpense += curr.Amount;
     
     return acc;
   }, {});
 
-  const sortedGroups = Object.keys(groupedTransactions).sort((a, b) => {
-    return new Date(groupedTransactions[b].sortDate) - new Date(groupedTransactions[a].sortDate);
-  });
+  const sortedGroups = Object.keys(groupedTransactions).sort((a, b) => new Date(groupedTransactions[b].sortDate) - new Date(groupedTransactions[a].sortDate));
 
-  // คำนวณยอดเงินคงเหลือรวม (นำเฉพาะรายรับลบรายจ่าย ไม่นับ Transfer)
   const totalBalance = transactions.reduce((acc, curr) => {
     if (curr.Type === 'Income') return acc + Number(curr.Amount);
     if (curr.Type === 'Expense') return acc - Number(curr.Amount);
-    return acc; // ถ้าเป็น Transfer ให้คืนค่าเดิมกลับไปโดยไม่นำไปบวกลบ
+    return acc;
   }, 0);
 
   const currentMonth = new Date().toISOString().slice(0, 7); 
   const monthlyTransactions = transactions.filter(t => t.Date.startsWith(currentMonth));
-  
-  const currentMonthIncome = monthlyTransactions
-    .filter(t => t.Type === 'Income')
-    .reduce((acc, curr) => acc + curr.Amount, 0);
-    
-  const currentMonthExpense = monthlyTransactions
-    .filter(t => t.Type === 'Expense')
-    .reduce((acc, curr) => acc + curr.Amount, 0);
+  const currentMonthIncome = monthlyTransactions.filter(t => t.Type === 'Income').reduce((acc, curr) => acc + curr.Amount, 0);
+  const currentMonthExpense = monthlyTransactions.filter(t => t.Type === 'Expense').reduce((acc, curr) => acc + curr.Amount, 0);
 
   const tabStyle = (mode) => ({
-    flex: 1,
-    padding: '10px',
-    backgroundColor: viewMode === mode ? '#d4af37' : '#2a2a2a',
-    color: viewMode === mode ? '#121212' : '#aaa',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    borderRadius: '8px'
+    flex: 1, padding: '10px', backgroundColor: viewMode === mode ? '#d4af37' : '#2a2a2a',
+    color: viewMode === mode ? '#121212' : '#aaa', border: 'none', cursor: 'pointer', fontWeight: 'bold', borderRadius: '8px'
   });
+
+  // คำนวณข้อมูลสำหรับ Export PDF
+  const filteredExport = transactions.filter(t => {
+    if (!exportStart || !exportEnd) return false;
+    return t.Date >= exportStart && t.Date <= exportEnd;
+  }).sort((a, b) => new Date(a.Date) - new Date(b.Date));
+
+  const exportIncomeTotal = filteredExport.filter(t => t.Type === 'Income').reduce((a, b) => a + b.Amount, 0);
+  const exportExpenseTotal = filteredExport.filter(t => t.Type === 'Expense').reduce((a, b) => a + b.Amount, 0);
 
   if (!user) {
     return (
@@ -246,7 +229,6 @@ function App() {
         <h1 className="text-gold" style={{ fontSize: '48px', marginBottom: '10px' }}>My Wallet</h1>
         <p style={{ color: '#aaa', marginBottom: '30px' }}>ระบบบัญชีรายรับ-รายจ่ายส่วนบุคคลบน Cloud</p>
         <button onClick={handleLogin} style={{ padding: '15px 30px', fontSize: '18px', width: 'auto', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#fff', color: '#000', border: 'none' }}>
-          <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="google" style={{ width: '24px' }} />
           เข้าสู่ระบบด้วย Google
         </button>
       </div>
@@ -255,38 +237,45 @@ function App() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#1e1e1e', padding: '10px 20px', borderRadius: '12px' }}>
+      {/* สไตล์สำหรับซ่อนส่วนอื่นตอนกด Print PDF */}
+      <style>
+        {`
+          @media print {
+            body * { visibility: hidden; }
+            #printable-area, #printable-area * { visibility: visible; }
+            #printable-area { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; color: #000 !important; }
+            .no-print { display: none !important; }
+            .card, body { background: #fff !important; }
+            th, td { color: #000 !important; border-color: #ccc !important; }
+          }
+        `}
+      </style>
+
+      <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#1e1e1e', padding: '10px 20px', borderRadius: '12px' }}>
         <h2 className="text-gold" style={{ margin: 0 }}>My Wallet</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <button onClick={() => setShowExportModal(true)} style={{ backgroundColor: '#2a2a2a', color: '#fff', border: '1px solid #444', padding: '8px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>📄 สรุป PDF</button>
           <img src={user.photoURL} alt="profile" style={{ width: '35px', height: '35px', borderRadius: '50%' }} referrerPolicy="no-referrer" />
-          <button onClick={handleLogout} style={{ width: 'auto', padding: '8px 12px', fontSize: '12px', backgroundColor: '#333', color: '#ff4d4d', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>ออกจากระบบ</button>
+          <button onClick={handleLogout} style={{ padding: '8px 12px', fontSize: '12px', backgroundColor: '#333', color: '#ff4d4d', border: 'none', borderRadius: '6px', cursor: 'pointer' }}>ออก</button>
         </div>
       </div>
       
-      <div className="card" style={{ textAlign: 'center' }}>
+      <div className="card no-print" style={{ textAlign: 'center' }}>
         <p style={{ margin: 0, color: '#aaa' }}>ยอดเงินคงเหลือรวม</p>
         <h1 style={{ margin: '10px 0', fontSize: '36px', color: '#d4af37' }}>฿{totalBalance.toLocaleString()}</h1>
-        
         <div style={{ fontSize: '12px', color: '#888', marginBottom: '10px' }}>
           สรุปยอดเดือนปัจจุบัน ({new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })})
         </div>
-
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #333' }}>
-          <div>
-            <p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>รายรับรวม</p>
-            <p className="income-text" style={{ margin: 0, fontSize: '18px' }}>+฿{currentMonthIncome.toLocaleString()}</p>
-          </div>
-          <div>
-            <p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>ใช้ไปแล้ว</p>
-            <p className="expense-text" style={{ margin: 0, fontSize: '18px' }}>-฿{currentMonthExpense.toLocaleString()}</p>
-          </div>
+          <div><p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>รายรับรวม</p><p className="income-text" style={{ margin: 0, fontSize: '18px' }}>+฿{currentMonthIncome.toLocaleString()}</p></div>
+          <div><p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>ใช้ไปแล้ว</p><p className="expense-text" style={{ margin: 0, fontSize: '18px' }}>-฿{currentMonthExpense.toLocaleString()}</p></div>
         </div>
       </div>
 
-      <div className="card">
+      <div className="card no-print">
         <h3 style={{ marginTop: 0 }}>เพิ่มรายการใหม่</h3>
         <form onSubmit={handleSubmit}>
-          <input type="date" name="date" value={formData.date} onChange={handleChange} required lang="en-GB" />
+          <input type="date" name="date" value={formData.date} onChange={handleChange} required />
           <div style={{ display: 'flex', gap: '10px' }}>
             <select name="type" value={formData.type} onChange={handleChange}>
               <option value="Expense">รายจ่าย</option>
@@ -294,62 +283,30 @@ function App() {
               <option value="Transfer">โอนเงิน (ยอดไม่ลด)</option>
             </select>
             <select name="category" value={formData.category} onChange={handleChange}>
-              {CATEGORIES[formData.type].map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
+              {CATEGORIES[formData.type].map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
           <input type="number" name="amount" placeholder="จำนวนเงิน (บาท)" value={formData.amount} onChange={handleChange} required />
           <input type="text" name="note" placeholder="บันทึกย่อ (ถ้ามี)" value={formData.note} onChange={handleChange} />
           
-          <div style={{ marginTop: '10px', backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '8px' }}>
-            <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#ccc' }}>แนบสลิป/หลักฐาน (ถ้ามี)</p>
-            <input 
-              type="file" 
-              accept="image/*" 
-              onChange={handleImageUpload} 
-              ref={fileInputRef}
-              style={{ padding: '0', backgroundColor: 'transparent', border: 'none', color: '#fff' }}
-            />
-            
+          <div style={{ marginTop: '10px', backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '8px', border: '1px solid #ff4d4d' }}>
+            <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: '#ff4d4d', fontWeight: 'bold' }}>* ต้องแนบสลิป/หลักฐานทุกครั้ง</p>
+            <input type="file" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} style={{ padding: '0', backgroundColor: 'transparent', border: 'none', color: '#fff' }} />
             {formData.slip && (
               <div style={{ marginTop: '15px', position: 'relative', display: 'inline-block' }}>
                 <img src={formData.slip} alt="preview" style={{ maxHeight: '100px', borderRadius: '8px', border: '1px solid #444' }} />
-                <button 
-                  type="button" 
-                  onClick={removeSlip}
-                  style={{ 
-                    position: 'absolute', top: '-10px', right: '-10px', 
-                    backgroundColor: '#ff4d4d', color: '#fff', border: 'none', 
-                    borderRadius: '50%', width: '24px', height: '24px', 
-                    fontSize: '12px', fontWeight: 'bold', cursor: 'pointer',
-                    display: 'flex', justifyContent: 'center', alignItems: 'center',
-                    padding: 0, boxShadow: '0 2px 4px rgba(0,0,0,0.5)'
-                  }}
-                  title="ลบรูป"
-                >
-                  ✕
-                </button>
+                <button type="button" onClick={removeSlip} style={{ position: 'absolute', top: '-10px', right: '-10px', backgroundColor: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '50%', width: '24px', height: '24px', fontSize: '12px', fontWeight: 'bold', cursor: 'pointer' }}>✕</button>
               </div>
             )}
           </div>
-
           <button type="submit" style={{ marginTop: '15px' }}>บันทึกรายการ</button>
         </form>
       </div>
 
-      <div className="card">
-        <div 
-          onClick={() => setShowHistory(!showHistory)}
-          style={{ 
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-            cursor: 'pointer', userSelect: 'none' 
-          }}
-        >
+      <div className="card no-print">
+        <div onClick={() => setShowHistory(!showHistory)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
           <h3 style={{ margin: 0 }}>ประวัติการใช้งาน</h3>
-          <span style={{ fontSize: '14px', color: '#d4af37', fontWeight: 'bold' }}>
-            {showHistory ? '▼ ซ่อนประวัติ' : '▶ ดูประวัติ'}
-          </span>
+          <span style={{ fontSize: '14px', color: '#d4af37', fontWeight: 'bold' }}>{showHistory ? '▼ ซ่อนประวัติ' : '▶ ดูประวัติ'}</span>
         </div>
         
         {showHistory && (
@@ -359,72 +316,33 @@ function App() {
               <button type="button" style={tabStyle('week')} onClick={() => setViewMode('week')}>รายสัปดาห์</button>
               <button type="button" style={tabStyle('month')} onClick={() => setViewMode('month')}>รายเดือน</button>
             </div>
-
             {sortedGroups.length === 0 && <p style={{ textAlign: 'center', color: '#888' }}>ยังไม่มีรายการ</p>}
-
             {sortedGroups.map(groupKey => {
               const isOpen = expandedGroups[groupKey] !== false; 
-
               return (
                 <div key={groupKey} style={{ marginBottom: '15px' }}>
-                  <div 
-                    onClick={() => toggleGroup(groupKey)}
-                    style={{ 
-                      backgroundColor: '#2a2a2a', padding: '10px 15px', borderRadius: '8px', 
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                      cursor: 'pointer', userSelect: 'none'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ fontSize: '12px', color: '#888' }}>{isOpen ? '▼' : '▶'}</span>
-                      <span style={{ color: '#d4af37', fontWeight: 'bold' }}>{groupKey}</span>
-                    </div>
+                  <div onClick={() => toggleGroup(groupKey)} style={{ backgroundColor: '#2a2a2a', padding: '10px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><span style={{ fontSize: '12px', color: '#888' }}>{isOpen ? '▼' : '▶'}</span><span style={{ color: '#d4af37', fontWeight: 'bold' }}>{groupKey}</span></div>
                     <span style={{ fontSize: '14px' }}>
                       {groupedTransactions[groupKey].totalIncome > 0 && <span className="income-text">+{groupedTransactions[groupKey].totalIncome.toLocaleString()} </span>}
                       {groupedTransactions[groupKey].totalIncome > 0 && groupedTransactions[groupKey].totalExpense > 0 && <span style={{ color: '#555', margin: '0 5px' }}>|</span>}
                       {groupedTransactions[groupKey].totalExpense > 0 && <span className="expense-text">-{groupedTransactions[groupKey].totalExpense.toLocaleString()}</span>}
                     </span>
                   </div>
-                  
                   {isOpen && (
                     <div style={{ padding: '0 10px', marginTop: '5px' }}>
                       {groupedTransactions[groupKey].items.slice().reverse().map(item => (
                         <div key={item.id} className="transaction-item" style={{ alignItems: 'flex-start' }}>
                           <div style={{ flex: 1 }}>
                             <div style={{ fontWeight: '500' }}>{item.Category}</div>
-                            
-                            <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>
-                              {item.Note ? `${item.Note} • ` : ''} 
-                              {new Date(item.Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}
-                            </div>
-                            
-                            {item.Slip && (
-                              <img 
-                                src={item.Slip} 
-                                alt="slip" 
-                                onClick={() => setViewSlipImage(item.Slip)}
-                                style={{ 
-                                  width: '50px', height: '50px', objectFit: 'cover', 
-                                  borderRadius: '6px', cursor: 'pointer', border: '1px solid #444' 
-                                }} 
-                              />
-                            )}
+                            <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>{item.Note ? `${item.Note} • ` : ''} {new Date(item.Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                            {item.Slip && <img src={item.Slip} alt="slip" onClick={() => setViewSlipImage(item.Slip)} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer', border: '1px solid #444' }} />}
                           </div>
-
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
-                            {/* กำหนดสีข้อความตัวเลข: รายรับ(เขียว) รายจ่าย(แดง) โอนเงิน(ฟ้า) */}
-                            <div 
-                              className={item.Type === 'Income' ? 'income-text' : item.Type === 'Expense' ? 'expense-text' : ''}
-                              style={item.Type === 'Transfer' ? { color: '#4da6ff', fontWeight: 'bold' } : {}}
-                            >
+                            <div className={item.Type === 'Income' ? 'income-text' : item.Type === 'Expense' ? 'expense-text' : ''} style={item.Type === 'Transfer' ? { color: '#4da6ff', fontWeight: 'bold' } : {}}>
                               {item.Type === 'Income' ? '+' : item.Type === 'Expense' ? '-' : ''}฿{Number(item.Amount).toLocaleString()}
                             </div>
-                            <button 
-                              onClick={() => handleDelete(item.id)}
-                              style={{ width: 'auto', padding: '5px 10px', backgroundColor: '#333', color: '#ff4d4d', borderRadius: '4px', fontSize: '12px', border: 'none', cursor: 'pointer' }}
-                            >
-                              ลบ
-                            </button>
+                            <button onClick={() => handleDelete(item.id)} style={{ padding: '5px 10px', backgroundColor: '#333', color: '#ff4d4d', borderRadius: '4px', fontSize: '12px', border: 'none', cursor: 'pointer' }}>ลบ</button>
                           </div>
                         </div>
                       ))}
@@ -437,24 +355,82 @@ function App() {
         )}
       </div>
 
+      {/* ป๊อปอัปดูรูปสลิป */}
       {viewSlipImage && (
-        <div 
-          onClick={() => setViewSlipImage(null)}
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            display: 'flex', justifyContent: 'center', alignItems: 'center',
-            zIndex: 1000, cursor: 'zoom-out'
-          }}
-        >
-          <img 
-            src={viewSlipImage} 
-            alt="slip-full" 
-            style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '12px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }} 
-          />
-          <div style={{ position: 'absolute', top: '20px', right: '20px', color: 'white', fontSize: '24px', fontWeight: 'bold' }}>✕</div>
+        <div className="no-print" onClick={() => setViewSlipImage(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, cursor: 'zoom-out' }}>
+          <img src={viewSlipImage} alt="slip-full" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '12px' }} />
         </div>
       )}
+
+      {/* ป๊อปอัป ออกรายงาน PDF */}
+      {showExportModal && (
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
+          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', padding: '20px', borderRadius: '12px', position: 'relative' }}>
+            <button onClick={() => setShowExportModal(false)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+            <h2 style={{ marginTop: 0, color: '#d4af37' }}>ออกรายงาน PDF</h2>
+            
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '14px', color: '#aaa' }}>ตั้งแต่วันที่</label>
+                <input type="date" value={exportStart} onChange={e => setExportStart(e.target.value)} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: '14px', color: '#aaa' }}>ถึงวันที่</label>
+                <input type="date" value={exportEnd} onChange={e => setExportEnd(e.target.value)} />
+              </div>
+            </div>
+
+            {exportStart && exportEnd && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#2a2a2a', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+                  <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>รายรับช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#4CAF50' }}>+฿{exportIncomeTotal.toLocaleString()}</h3></div>
+                  <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>รายจ่ายช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#ff4d4d' }}>-฿{exportExpenseTotal.toLocaleString()}</h3></div>
+                  <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>คงเหลือช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#d4af37' }}>฿{(exportIncomeTotal - exportExpenseTotal).toLocaleString()}</h3></div>
+                </div>
+                <button onClick={() => window.print()} style={{ width: '100%', padding: '15px', fontSize: '16px' }}>🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ส่วนที่จะถูกพิมพ์ลง PDF (จะซ่อนไว้ในหน้าเว็บปกติ และแสดงเฉพาะตอนกด Print) */}
+      <div id="printable-area" style={{ display: 'none', padding: '20px', color: '#000', backgroundColor: '#fff', minHeight: '100vh' }}>
+        <h1 style={{ textAlign: 'center', margin: '0 0 10px 0' }}>สรุปรายการบัญชี My Wallet</h1>
+        <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>ตั้งแต่วันที่ {exportStart ? new Date(exportStart).toLocaleDateString('th-TH') : '-'} ถึง {exportEnd ? new Date(exportEnd).toLocaleDateString('th-TH') : '-'}</p>
+        
+        <div style={{ display: 'flex', justifyContent: 'space-around', marginBottom: '30px', borderBottom: '2px solid #000', paddingBottom: '10px' }}>
+          <div><strong>รายรับรวม:</strong> {exportIncomeTotal.toLocaleString()} บาท</div>
+          <div><strong>รายจ่ายรวม:</strong> {exportExpenseTotal.toLocaleString()} บาท</div>
+          <div><strong>คงเหลือสุทธิ:</strong> {(exportIncomeTotal - exportExpenseTotal).toLocaleString()} บาท</div>
+        </div>
+
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#f2f2f2' }}>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>วันที่</th>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>ประเภท</th>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'left' }}>หมวดหมู่ / บันทึก</th>
+              <th style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'right' }}>จำนวนเงิน (บาท)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredExport.map((item, index) => (
+              <tr key={index}>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{new Date(item.Date).toLocaleDateString('th-TH')}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.Type === 'Income' ? 'รายรับ' : item.Type === 'Expense' ? 'รายจ่าย' : 'โอนเงิน'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px' }}>{item.Category} {item.Note ? `(${item.Note})` : ''}</td>
+                <td style={{ border: '1px solid #ddd', padding: '8px', textAlign: 'right', color: item.Type === 'Income' ? 'green' : item.Type === 'Expense' ? 'red' : 'blue' }}>
+                  {item.Type === 'Expense' ? '-' : ''}{Number(item.Amount).toLocaleString()}
+                </td>
+              </tr>
+            ))}
+            {filteredExport.length === 0 && (
+              <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px' }}>ไม่พบรายการในช่วงวันที่เลือก</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
     </div>
   )
