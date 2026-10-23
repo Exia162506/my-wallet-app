@@ -3,7 +3,16 @@ import './index.css';
 
 // นำเข้าโมดูลของ Firebase
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "firebase/auth";
+import { 
+  getAuth, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  FacebookAuthProvider, 
+  signOut, 
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword 
+} from "firebase/auth";
 import { getFirestore, collection, addDoc, query, where, onSnapshot, deleteDoc, doc } from "firebase/firestore";
 
 // API Key จากโปรเจกต์ของคุณ
@@ -20,7 +29,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const provider = new GoogleAuthProvider();
+const googleProvider = new GoogleAuthProvider();
+const facebookProvider = new FacebookAuthProvider();
 
 const CATEGORIES = {
   Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'บิล/ค่าน้ำค่าไฟ', 'โอนไปบัญชีอื่น', 'อื่นๆ'],
@@ -53,6 +63,11 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [showHistory, setShowHistory] = useState(false);
   const [viewSlipImage, setViewSlipImage] = useState(null);
+
+  // สถานะสำหรับหน้า Login / Register ด้วย Email
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
 
   // สถานะเปิด-ปิดเมนูโปรไฟล์
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -96,11 +111,34 @@ function App() {
     }
   }, [user]);
 
-  const handleLogin = async () => {
+  const handleGoogleLogin = async () => {
     try {
-      await signInWithPopup(auth, provider);
+      await signInWithPopup(auth, googleProvider);
     } catch (error) {
-      alert("เกิดข้อผิดพลาดในการล็อกอิน");
+      alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google");
+    }
+  };
+
+  const handleFacebookLogin = async () => {
+    try {
+      await signInWithPopup(auth, facebookProvider);
+    } catch (error) {
+      alert("เกิดข้อผิดพลาด: กรุณาเปิดใช้งาน Facebook Login ใน Firebase Console ก่อนครับ");
+    }
+  };
+
+  const handleEmailAuth = async (e) => {
+    e.preventDefault();
+    if (!authEmail || !authPassword) return;
+    try {
+      if (isRegisterMode) {
+        await createUserWithEmailAndPassword(auth, authEmail, authPassword);
+        alert("✅ สร้างบัญชีสำเร็จและเข้าสู่ระบบแล้ว!");
+      } else {
+        await signInWithEmailAndPassword(auth, authEmail, authPassword);
+      }
+    } catch (error) {
+      alert("❌ เกิดข้อผิดพลาด: " + error.message);
     }
   };
 
@@ -231,14 +269,68 @@ function App() {
   const exportIncomeTotal = filteredExport.filter(t => t.Type === 'Income').reduce((a, b) => a + b.Amount, 0);
   const exportExpenseTotal = filteredExport.filter(t => t.Type === 'Expense').reduce((a, b) => a + b.Amount, 0);
 
+  // หน้าจอ Login / Register
   if (!user) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
-        <h1 className="text-gold" style={{ fontSize: '48px', marginBottom: '10px' }}>My Wallet</h1>
-        <p style={{ color: '#aaa', marginBottom: '30px' }}>ระบบบัญชีรายรับ-รายจ่ายส่วนบุคคลบน Cloud</p>
-        <button onClick={handleLogin} style={{ padding: '15px 30px', fontSize: '18px', width: 'auto', borderRadius: '30px', display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#fff', color: '#000', border: 'none' }}>
-          เข้าสู่ระบบด้วย Google
-        </button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '90vh', padding: '20px' }}>
+        <h1 className="text-gold" style={{ fontSize: '42px', marginBottom: '5px' }}>My Wallet</h1>
+        <p style={{ color: '#aaa', marginBottom: '25px' }}>ระบบบัญชีรายรับ-รายจ่ายส่วนบุคคลบน Cloud</p>
+        
+        <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '25px' }}>
+          <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>
+            {isRegisterMode ? 'สร้างบัญชีใหม่' : 'เข้าสู่ระบบ'}
+          </h3>
+
+          <form onSubmit={handleEmailAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <input 
+              type="email" 
+              placeholder="อีเมลของคุณ" 
+              value={authEmail} 
+              onChange={(e) => setAuthEmail(e.target.value)} 
+              required 
+            />
+            <input 
+              type="password" 
+              placeholder="รหัสผ่าน (อย่างน้อย 6 ตัวอักษร)" 
+              value={authPassword} 
+              onChange={(e) => setAuthPassword(e.target.value)} 
+              required 
+            />
+            <button type="submit" style={{ backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', marginTop: '5px' }}>
+              {isRegisterMode ? 'สมัครสมาชิก' : 'เข้าสู่ระบบ'}
+            </button>
+          </form>
+
+          <div style={{ textAlign: 'center', marginTop: '15px' }}>
+            <span style={{ fontSize: '13px', color: '#aaa' }}>
+              {isRegisterMode ? 'มีบัญชีอยู่แล้ว?' : 'ยังไม่มีบัญชีใช่ไหม?'}{' '}
+            </span>
+            <span 
+              onClick={() => setIsRegisterMode(!isRegisterMode)} 
+              style={{ fontSize: '13px', color: '#d4af37', cursor: 'pointer', fontWeight: 'bold', textDecoration: 'underline' }}
+            >
+              {isRegisterMode ? 'เข้าสู่ระบบที่นี่' : 'สร้างบัญชีใหม่'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: '#666' }}>
+            <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }}></div>
+            <span style={{ padding: '0 10px', fontSize: '12px' }}>หรือเชื่อมต่อผ่าน</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }}></div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <button onClick={handleGoogleLogin} style={{ padding: '12px', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#fff', color: '#000', border: 'none', fontWeight: '500' }}>
+              <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="google" style={{ width: '20px' }} />
+              ดำเนินการต่อด้วย Google
+            </button>
+
+            <button onClick={handleFacebookLogin} style={{ padding: '12px', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#1877F2', color: '#fff', border: 'none', fontWeight: '500' }}>
+              <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="facebook" style={{ width: '20px', filter: 'brightness(0) invert(1)' }} />
+              ดำเนินการต่อด้วย Facebook
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -266,12 +358,10 @@ function App() {
         <h2 className="text-gold" style={{ margin: 0 }}>My Wallet</h2>
         
         <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
-          {/* รูปโปรไฟล์ กดเพื่อเปิดเมนู */}
           <div onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-            <img src={user.photoURL} alt="profile" style={{ width: '38px', height: '38px', borderRadius: '50%', border: '2px solid #d4af37' }} referrerPolicy="no-referrer" />
+            <img src={user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"} alt="profile" style={{ width: '38px', height: '38px', borderRadius: '50%', border: '2px solid #d4af37', objectFit: 'cover' }} referrerPolicy="no-referrer" />
           </div>
 
-          {/* เมนูดรอปดาวน์โปรไฟล์ */}
           {showProfileMenu && (
             <div style={{
               position: 'absolute', top: '50px', right: '0',
