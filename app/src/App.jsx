@@ -95,7 +95,6 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
-  // ระบบ Custom Popup (Alert และ Confirm แบบ Modal)
   const [customAlert, setCustomAlert] = useState(null);
   const [customConfirm, setCustomConfirm] = useState({ show: false, message: '', onConfirm: null });
 
@@ -224,7 +223,6 @@ function App() {
     setNewAccountNumber('');
   };
 
-  // เปลี่ยนจากการใช้ window.confirm เป็น Popup Modal ยืนยันการลบบัญชี
   const handleDeleteCustomWallet = (id) => {
     setCustomConfirm({
       show: true,
@@ -237,7 +235,7 @@ function App() {
     });
   };
 
-  // ระบบสแกน OCR ครอบคลุมทุกธนาคารในไทย
+  // ระบบสแกน OCR โดยคงประเภทที่ผู้ใช้เลือกไว้เป็นหลัก (ไม่บังคับเปลี่ยนเป็นรายจ่ายทับ)
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
@@ -267,20 +265,8 @@ function App() {
       }
 
       let matchedWallet = null;
-      let detectedType = 'Expense'; 
 
       const lowerText = text.toLowerCase();
-      if (
-        lowerText.includes('รับเงิน') || 
-        lowerText.includes('ยอดเงินเข้า') || 
-        lowerText.includes('รับโอน') || 
-        lowerText.includes('receive') || 
-        lowerText.includes('transfer in') ||
-        lowerText.includes('โอนเงินสำเร็จ')
-      ) {
-        detectedType = 'Income';
-      }
-
       const allThaiBankKeywords = [
         'กรุงศรี', 'krungsri', 'อยุธยา', 'ttb', 'ทีทีบี', 'ทหารไทย', 'ธนชาต', 
         'ออมสิน', 'gsb', 'ธ.ก.ส', 'baac', 'ธอส', 'ghb', 'ghbank', 
@@ -289,36 +275,50 @@ function App() {
         'cimb thai', 'icbc', 'hsbc', 'citibank', 'standard chartered'
       ];
 
-      for (let w of activeWallets) {
-        const isNameMatch = w.name && text.toLowerCase().includes(w.name.toLowerCase().split(' ')[0]);
-        const isAccNumMatch = w.accountNumber && w.accountNumber !== '-' && text.includes(w.accountNumber);
-        const isAccNameMatch = w.accountName && w.accountName !== '-' && text.includes(w.accountName);
-
-        if (isNameMatch || isAccNumMatch || isAccNameMatch) {
-          matchedWallet = w.name;
-          break;
+      setFormData(prev => {
+        let detectedType = prev.type; // ใช้ค่าเดิมที่ผู้ใช้เลือกไว้ ไม่บังคับเปลี่ยนเป็นรายจ่าย
+        if (
+          lowerText.includes('รับเงิน') || 
+          lowerText.includes('ยอดเงินเข้า') || 
+          lowerText.includes('รับโอน') || 
+          lowerText.includes('receive') || 
+          lowerText.includes('transfer in') ||
+          lowerText.includes('โอนเงินสำเร็จ')
+        ) {
+          detectedType = 'Income';
         }
-      }
 
-      if (!matchedWallet) {
-        for (let keyword of allThaiBankKeywords) {
-          if (lowerText.includes(keyword)) {
-            const otherWallet = activeWallets.find(w => w.id === 'Other' || w.name.includes('อื่นๆ'));
-            if (otherWallet) {
-              matchedWallet = otherWallet.name;
-            }
+        for (let w of activeWallets) {
+          const isNameMatch = w.name && text.toLowerCase().includes(w.name.toLowerCase().split(' ')[0]);
+          const isAccNumMatch = w.accountNumber && w.accountNumber !== '-' && text.includes(w.accountNumber);
+          const isAccNameMatch = w.accountName && w.accountName !== '-' && text.includes(w.accountName);
+
+          if (isNameMatch || isAccNumMatch || isAccNameMatch) {
+            matchedWallet = w.name;
             break;
           }
         }
-      }
 
-      setFormData(prev => ({
-        ...prev,
-        amount: detectedAmount || prev.amount,
-        type: detectedType,
-        category: CATEGORIES[detectedType][0], 
-        wallet: matchedWallet && prev.type !== 'Transfer' ? matchedWallet : prev.wallet
-      }));
+        if (!matchedWallet) {
+          for (let keyword of allThaiBankKeywords) {
+            if (lowerText.includes(keyword)) {
+              const otherWallet = activeWallets.find(w => w.id === 'Other' || w.name.includes('อื่นๆ'));
+              if (otherWallet) {
+                matchedWallet = otherWallet.name;
+              }
+              break;
+            }
+          }
+        }
+
+        return {
+          ...prev,
+          amount: detectedAmount || prev.amount,
+          type: detectedType,
+          category: detectedType !== prev.type ? CATEGORIES[detectedType][0] : prev.category,
+          wallet: matchedWallet && prev.type !== 'Transfer' ? matchedWallet : prev.wallet
+        };
+      });
 
     } catch (error) {
       console.error("OCR Error:", error);
@@ -415,8 +415,8 @@ function App() {
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'type') {
-      setFormData({ ...formData, type: value, category: CATEGORIES[value][0], slip: null });
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      // เอา slip: null ออก เพื่อไม่ให้สลิปหายเวลาสลับประเภทรายรับ/รายจ่าย
+      setFormData(prev => ({ ...prev, type: value, category: CATEGORIES[value][0] }));
       setSlipError(false);
     } else {
       setFormData({ ...formData, [name]: value });
@@ -454,7 +454,6 @@ function App() {
     } catch (error) { setCustomAlert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
   };
 
-  // เปลี่ยนจากการใช้ window.confirm เป็น Popup Modal ยืนยันการลบรายการ
   const handleDelete = (id) => {
     setCustomConfirm({
       show: true,
@@ -631,7 +630,7 @@ function App() {
         `}
       </style>
 
-      {/* Custom Popup Modal สำหรับแจ้งเตือนทั่วไป */}
+      {/* Custom Popup Modal */}
       {customAlert && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', border: '1px solid #d4af37', padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '340px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
@@ -641,7 +640,7 @@ function App() {
         </div>
       )}
 
-      {/* Custom Confirm Modal สำหรับยืนยันการลบ (แทน window.confirm) */}
+      {/* Custom Confirm Modal */}
       {customConfirm.show && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', border: '1px solid #d4af37', padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '340px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
