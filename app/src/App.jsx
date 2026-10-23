@@ -616,12 +616,12 @@ function App() {
         </form>
       </div>
 
-      {/* Modal / Popup: ประวัติการใช้งาน (เอาวงกลมสีแดงออก ใช้ปุ่มปิดแบบข้อความ/ไอคอนสะอาดตา) */}
+      {/* Modal / Popup: ประวัติการใช้งาน */}
       {showHistoryModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky พร้อมปุ่ม X แบบไม่มีวงกลมสีแดง */}
+            {/* ส่วนหัว Sticky จัดให้อยู่กึ่งกลางแนวตั้งสมดุลกัน */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -630,12 +630,12 @@ function App() {
               top: '-20px', 
               backgroundColor: '#1e1e1e', 
               zIndex: 10, 
-              padding: '12px 0 10px 0', 
+              padding: '15px 0 12px 0', 
               borderBottom: '1px solid #333', 
               marginBottom: '15px', 
               marginTop: '-10px' 
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37' }}>ประวัติการใช้งาน</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', lineHeight: '1.2' }}>ประวัติการใช้งาน</h2>
               <button 
                 onClick={() => setShowHistoryModal(false)} 
                 style={{ 
@@ -644,7 +644,10 @@ function App() {
                   color: '#aaa', 
                   fontSize: '22px', 
                   cursor: 'pointer',
-                  padding: '0 5px'
+                  padding: '0 5px',
+                  lineHeight: '1',
+                  display: 'flex',
+                  alignItems: 'center'
                 }}
               >
                 ✕
@@ -728,12 +731,12 @@ function App() {
         </div>
       )}
 
-      {/* Modal / Popup: สรุป PDF (เอาวงกลมสีแดงออก ใช้ปุ่มปิดแบบข้อความ/ไอคอนสะอาดตา) */}
+      {/* Modal / Popup: สรุป PDF */}
       {showExportModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky พร้อมปุ่ม X แบบไม่มีวงกลมสีแดง */}
+            {/* ส่วนหัว Sticky จัดให้อยู่กึ่งกลางแนวตั้งสมดุลกัน */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -742,12 +745,12 @@ function App() {
               top: '-20px', 
               backgroundColor: '#1e1e1e', 
               zIndex: 10, 
-              padding: '12px 0 10px 0', 
+              padding: '15px 0 12px 0', 
               borderBottom: '1px solid #333', 
               marginBottom: '15px', 
               marginTop: '-10px' 
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37' }}>ออกรายงาน PDF</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', lineHeight: '1.2' }}>ออกรายงาน PDF</h2>
               <button 
                 onClick={() => setShowExportModal(false)} 
                 style={{ 
@@ -756,7 +759,10 @@ function App() {
                   color: '#aaa', 
                   fontSize: '22px', 
                   cursor: 'pointer',
-                  padding: '0 5px'
+                  padding: '0 5px',
+                  lineHeight: '1',
+                  display: 'flex',
+                  alignItems: 'center'
                 }}
               >
                 ✕
