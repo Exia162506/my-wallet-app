@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './index.css';
 
-// นำเข้าโมดูลของ Firebase
+// นำเข้าโมดูลของ Firebase (แก้ไขนำ sendPasswordResetLink ที่เกินออก)
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -12,7 +12,6 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
-  sendPasswordResetLink,
   sendPasswordResetEmail
 } from "firebase/auth";
 import { getFirestore, collection, addDoc, query, where, onSnapshot, deleteDoc, doc } from "firebase/firestore";
@@ -67,7 +66,7 @@ function App() {
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
   // สถานะหน้า Auth (login, register, forgot, verify-otp)
-  const [authMode, setAuthMode] = useState('login'); // 'login', 'register', 'forgot', 'verify-otp'
+  const [authMode, setAuthMode] = useState('login'); 
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -144,7 +143,6 @@ function App() {
     }
   };
 
-  // ขั้นตอนที่ 1: กดสมัครสมาชิก -> ส่ง OTP จำลอง
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
     if (authPassword !== confirmPassword) {
@@ -156,17 +154,14 @@ function App() {
       return;
     }
 
-    // สร้างรหัส OTP สุ่ม 6 หลัก
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(otp);
     setTempRegData({ email: authEmail, password: authPassword });
     
-    // แสดง OTP จำลองให้ผู้ใช้เห็น (หรือส่งเมลจริงผ่าน Firebase)
     alert(`📱 ระบบได้ส่งรหัส OTP ไปยังอีเมลของคุณแล้ว\n\n🔑 รหัส OTP ทดสอบของคุณคือ: [ ${otp} ]`);
     setAuthMode('verify-otp');
   };
 
-  // ขั้นตอนที่ 2: ยืนยัน OTP เพื่อสร้างบัญชีจริงใน Firebase
   const handleVerifyOtpSubmit = async (e) => {
     e.preventDefault();
     if (inputOtp !== generatedOtp) {
@@ -188,7 +183,6 @@ function App() {
     }
   };
 
-  // ระบบลืมรหัสผ่านด้วย OTP / รีเซ็ตผ่านอีเมล Firebase
   const handleForgotPassword = async (e) => {
     e.preventDefault();
     if (!authEmail) {
@@ -331,7 +325,6 @@ function App() {
   const exportIncomeTotal = filteredExport.filter(t => t.Type === 'Income').reduce((a, b) => a + b.Amount, 0);
   const exportExpenseTotal = filteredExport.filter(t => t.Type === 'Expense').reduce((a, b) => a + b.Amount, 0);
 
-  // หน้าจอ Auth ทั้งหมด (Login, Register, Verify OTP, Forgot Password)
   if (!user) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '90vh', padding: '20px' }}>
@@ -340,7 +333,6 @@ function App() {
         
         <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '25px' }}>
           
-          {/* 1. หน้าเข้าสู่ระบบ */}
           {authMode === 'login' && (
             <>
               <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>เข้าสู่ระบบ</h3>
@@ -359,7 +351,6 @@ function App() {
             </>
           )}
 
-          {/* 2. หน้าสมัครสมาชิก (ยืนยันรหัสผ่าน 2 รอบ) */}
           {authMode === 'register' && (
             <>
               <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>สร้างบัญชีใหม่</h3>
@@ -376,7 +367,6 @@ function App() {
             </>
           )}
 
-          {/* 3. หน้ากรอกรหัส OTP ยืนยันตัวตน */}
           {authMode === 'verify-otp' && (
             <>
               <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>ยืนยันรหัส OTP</h3>
@@ -393,7 +383,6 @@ function App() {
             </>
           )}
 
-          {/* 4. หน้าลืมรหัสผ่าน (ขอ OTP / รีเซ็ตผ่านอีเมล) */}
           {authMode === 'forgot' && (
             <>
               <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>กู้คืนรหัสผ่าน</h3>
