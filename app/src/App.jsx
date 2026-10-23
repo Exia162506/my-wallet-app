@@ -600,8 +600,8 @@ function App() {
               {formData.slip ? (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                   <img src={formData.slip} alt="preview" style={{ maxHeight: '110px', borderRadius: '8px', border: '1px solid #444' }} />
-                  {/* ปุ่ม X อยู่ที่มุมขวาบนของรูปสลิปโดยไม่มีวงกลมสีแดง */}
-                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: '-6px', right: '-6px', backgroundColor: '#333', color: '#fff', border: '1px solid #555', borderRadius: '50%', width: '22px', height: '22px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  {/* ปุ่ม X ที่มุมขวาบนสุดของรูปสลิปพอดี */}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#333', color: '#fff', border: '1px solid #555', borderRadius: '50%', width: '22px', height: '22px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                 </div>
               ) : (
                 <>
@@ -622,7 +622,7 @@ function App() {
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky จัดให้ X อยู่ขวาบนสุดพอดี */}
+            {/* ส่วนหัว Sticky ขยายเต็มขอบซ้ายขวาเพื่อให้ปุ่ม X ไปอยู่มุมขวาบนสุดพอดี */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -631,10 +631,9 @@ function App() {
               top: '-20px', 
               backgroundColor: '#1e1e1e', 
               zIndex: 10, 
-              padding: '15px 0 12px 0', 
-              borderBottom: '1px solid #333', 
-              marginBottom: '15px', 
-              marginTop: '-10px' 
+              padding: '15px 20px 12px 20px', 
+              margin: '-20px -20px 15px -20px',
+              borderBottom: '1px solid #333'
             }}>
               <h2 style={{ margin: 0, color: '#d4af37', lineHeight: '1.2' }}>ประวัติการใช้งาน</h2>
               <button 
@@ -737,7 +736,7 @@ function App() {
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky จัดให้ X อยู่ขวาบนสุดพอดี */}
+            {/* ส่วนหัว Sticky ขยายเต็มขอบซ้ายขวาเพื่อให้ปุ่ม X ไปอยู่มุมขวาบนสุดพอดี */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
@@ -746,10 +745,9 @@ function App() {
               top: '-20px', 
               backgroundColor: '#1e1e1e', 
               zIndex: 10, 
-              padding: '15px 0 12px 0', 
-              borderBottom: '1px solid #333', 
-              marginBottom: '15px', 
-              marginTop: '-10px' 
+              padding: '15px 20px 12px 20px', 
+              margin: '-20px -20px 15px -20px',
+              borderBottom: '1px solid #333'
             }}>
               <h2 style={{ margin: 0, color: '#d4af37', lineHeight: '1.2' }}>ออกรายงาน PDF</h2>
               <button 
