@@ -42,7 +42,6 @@ const CATEGORIES = {
   Transfer: ['โอนย้ายเงินภายใน'] 
 };
 
-// รายชื่อธนาคารและสถาบันการเงินทั้งหมดในประเทศไทย สำหรับใส่ในดรอปดาวน์
 const THAI_BANKS = [
   { name: 'กสิกรไทย (KBank)', color: '#138f2d' },
   { name: 'ไทยพาณิชย์ (SCB)', color: '#4e2a84' },
@@ -96,7 +95,9 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
+  // ระบบ Custom Popup (Alert และ Confirm แบบ Modal)
   const [customAlert, setCustomAlert] = useState(null);
+  const [customConfirm, setCustomConfirm] = useState({ show: false, message: '', onConfirm: null });
 
   const [wallets, setWallets] = useState(() => {
     const saved = localStorage.getItem('my_wallet_settings_v8');
@@ -223,10 +224,17 @@ function App() {
     setNewAccountNumber('');
   };
 
+  // เปลี่ยนจากการใช้ window.confirm เป็น Popup Modal ยืนยันการลบบัญชี
   const handleDeleteCustomWallet = (id) => {
-    if (window.confirm("คุณต้องการลบบัญชีนี้ใช่หรือไม่?")) {
-      setWallets(wallets.filter(w => w.id !== id));
-    }
+    setCustomConfirm({
+      show: true,
+      message: "คุณต้องการลบบัญชีนี้ใช่หรือไม่?",
+      onConfirm: () => {
+        setWallets(wallets.filter(w => w.id !== id));
+        setCustomConfirm({ show: false, message: '', onConfirm: null });
+        setCustomAlert("✅ ลบบัญชีเรียบร้อยแล้ว");
+      }
+    });
   };
 
   // ระบบสแกน OCR ครอบคลุมทุกธนาคารในไทย
@@ -446,10 +454,17 @@ function App() {
     } catch (error) { setCustomAlert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
   };
 
-  const handleDelete = async (id) => {
-    if(window.confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
-      await deleteDoc(doc(db, "transactions", id)); 
-    }
+  // เปลี่ยนจากการใช้ window.confirm เป็น Popup Modal ยืนยันการลบรายการ
+  const handleDelete = (id) => {
+    setCustomConfirm({
+      show: true,
+      message: "คุณต้องการลบรายการนี้ใช่หรือไม่?",
+      onConfirm: async () => {
+        await deleteDoc(doc(db, "transactions", id));
+        setCustomConfirm({ show: false, message: '', onConfirm: null });
+        setCustomAlert("✅ ลบรายการเรียบร้อยแล้ว");
+      }
+    });
   };
 
   const toggleGroup = (groupKey) => {
@@ -616,12 +631,25 @@ function App() {
         `}
       </style>
 
-      {/* Custom Popup Modal */}
+      {/* Custom Popup Modal สำหรับแจ้งเตือนทั่วไป */}
       {customAlert && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', border: '1px solid #d4af37', padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '340px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
             <p style={{ color: '#fff', fontSize: '15px', marginBottom: '20px', whiteSpace: 'pre-line', lineHeight: '1.5' }}>{customAlert}</p>
             <button onClick={() => setCustomAlert(null)} style={{ backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', border: 'none', padding: '10px 25px', borderRadius: '8px', cursor: 'pointer', width: '100%', fontSize: '15px' }}>ตกลง</button>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Confirm Modal สำหรับยืนยันการลบ (แทน window.confirm) */}
+      {customConfirm.show && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '20px' }}>
+          <div style={{ backgroundColor: '#1e1e1e', border: '1px solid #d4af37', padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '340px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
+            <p style={{ color: '#fff', fontSize: '15px', marginBottom: '20px', whiteSpace: 'pre-line', lineHeight: '1.5' }}>{customConfirm.message}</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setCustomConfirm({ show: false, message: '', onConfirm: null })} style={{ flex: 1, backgroundColor: '#333', color: '#fff', fontWeight: 'bold', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>ยกเลิก</button>
+              <button onClick={customConfirm.onConfirm} style={{ flex: 1, backgroundColor: '#ff4d4d', color: '#fff', fontWeight: 'bold', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' }}>ยืนยันลบ</button>
+            </div>
           </div>
         </div>
       )}
@@ -767,7 +795,7 @@ function App() {
         </form>
       </div>
 
-      {/* Modal: ตั้งค่าบัญชีธนาคาร (มีดรอปดาวน์เลือกธนาคารทั้งหมดในไทย) */}
+      {/* Modal: ตั้งค่าบัญชีธนาคาร */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
