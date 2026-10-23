@@ -142,7 +142,6 @@ function App() {
     reader.readAsDataURL(file);
   };
 
-  // รองรับการกด Paste (Ctrl+V) รูปภาพสลิป
   useEffect(() => {
     const handlePaste = (e) => {
       const items = e.clipboardData?.items;
@@ -619,40 +618,42 @@ function App() {
 
       {/* Modal / Popup: ประวัติการใช้งาน */}
       {showHistoryModal && (
-        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
           
-          {/* ปรับโครงสร้างกล่อง Modal ใหม่เป็น Flex Column แยกส่วนหัวและส่วนเนื้อหาเด็ดขาด */}
-          <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '650px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
+          {/* กล่อง Modal */}
+          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             
-            {/* ส่วนหัว Fixed: ปุ่ม X จะอยู่ชิดขวาบนสุดเสมอไม่ว่าหน้าจอจะแคบแค่ไหน */}
+            {/* ส่วนหัว Fixed: ใช้ position: relative เพื่อล็อคปุ่ม X ไว้มุมขวาบนสุด */}
             <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'flex-start', 
-              padding: '20px', 
+              position: 'relative', 
+              padding: '20px 50px 20px 20px', /* เว้นที่ด้านขวา 50px กันตัวอักษรชนปุ่ม X */
               borderBottom: '1px solid #333', 
               backgroundColor: '#1e1e1e',
               flexShrink: 0
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', lineHeight: '1.3', paddingRight: '20px' }}>ประวัติการใช้งาน</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', lineHeight: '1.4' }}>ประวัติการใช้งาน</h2>
+              
+              {/* ปุ่ม X บังคับชิดขวาบน 100% เสมอ */}
               <button 
                 onClick={() => setShowHistoryModal(false)} 
                 style={{ 
+                  position: 'absolute',
+                  top: '20px', 
+                  right: '20px',
                   background: 'none', 
                   border: 'none', 
                   color: '#aaa', 
                   fontSize: '24px', 
                   cursor: 'pointer',
                   padding: '0',
-                  lineHeight: '1',
-                  marginTop: '-2px'
+                  lineHeight: '1'
                 }}
               >
                 ✕
               </button>
             </div>
             
-            {/* ส่วนเนื้อหา Scrollable: เลื่อนเฉพาะเนื้อหาด้านล่าง */}
+            {/* ส่วนเนื้อหา Scrollable */}
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
                 <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
@@ -734,33 +735,35 @@ function App() {
 
       {/* Modal / Popup: สรุป PDF */}
       {showExportModal && (
-        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           
-          {/* โครงสร้างใหม่ แยกส่วนหัวและเนื้อหาออกจากกัน */}
-          <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '600px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
+          {/* กล่อง Modal */}
+          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             
-            {/* ส่วนหัว Fixed: ปุ่ม X จะอยู่ชิดขวาบนสุดเสมอ */}
+            {/* ส่วนหัว Fixed: ใช้ position: relative เพื่อล็อคปุ่ม X ไว้มุมขวาบนสุด */}
             <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'flex-start', 
-              padding: '20px', 
+              position: 'relative', 
+              padding: '20px 50px 20px 20px', /* เว้นที่ด้านขวา 50px กันตัวอักษรชนปุ่ม X */
               borderBottom: '1px solid #333', 
               backgroundColor: '#1e1e1e',
               flexShrink: 0
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', lineHeight: '1.3', paddingRight: '20px' }}>ออกรายงาน PDF</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', lineHeight: '1.4' }}>ออกรายงาน PDF</h2>
+              
+              {/* ปุ่ม X บังคับชิดขวาบน 100% เสมอ */}
               <button 
                 onClick={() => setShowExportModal(false)} 
                 style={{ 
+                  position: 'absolute',
+                  top: '20px', 
+                  right: '20px',
                   background: 'none', 
                   border: 'none', 
                   color: '#aaa', 
                   fontSize: '24px', 
                   cursor: 'pointer',
                   padding: '0',
-                  lineHeight: '1',
-                  marginTop: '-2px'
+                  lineHeight: '1'
                 }}
               >
                 ✕
