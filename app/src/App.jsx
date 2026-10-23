@@ -61,9 +61,8 @@ function App() {
   const [user, setUser] = useState(null); 
   const [transactions, setTransactions] = useState([]);
   const [viewMode, setViewMode] = useState('month'); 
-  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().split('T')[0]); // สถานะสำหรับเลือกวันในโหมดรายวัน
+  const [selectedDay, setSelectedDay] = useState(new Date().toISOString().split('T')[0]); 
   const [expandedGroups, setExpandedGroups] = useState({}); 
-  const [showHistory, setShowHistory] = useState(false);
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
   // สถานะหน้า Auth (login, register, forgot, verify-otp)
@@ -77,14 +76,16 @@ function App() {
   const [inputOtp, setInputOtp] = useState('');
   const [tempRegData, setTempRegData] = useState(null);
 
-  // สถานะเปิด-ปิดเมนูโปรไฟล์
+  // สถานะเปิด-ปิดเมนูโปรไฟล์ และ Popup ต่างๆ
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   // ระบบเช็กข้อผิดพลาดของการไม่อัปโหลดสลิป
   const [slipError, setSlipError] = useState(false);
 
   // ระบบ Export PDF
-  const [showExportModal, setShowExportModal] = useState(false);
   const [exportStart, setExportStart] = useState('');
   const [exportEnd, setExportEnd] = useState('');
 
@@ -237,10 +238,6 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    if(window.confirm('คุณต้องการออกจากระบบใช่หรือไม่?')) signOut(auth);
-  };
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     if (name === 'type') {
@@ -317,7 +314,6 @@ function App() {
     }));
   };
 
-  // กรองข้อมูลตามโหมดการแสดงผล (ถ้าเป็นรายวัน ให้กรองเฉพาะวันที่เลือก)
   const transactionsToDisplay = viewMode === 'day' 
     ? transactions.filter(t => t.Date === selectedDay)
     : transactions;
@@ -495,9 +491,17 @@ function App() {
             <div style={{
               position: 'absolute', top: '50px', right: '0',
               backgroundColor: '#2a2a2a', border: '1px solid #444',
-              borderRadius: '8px', width: '180px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+              borderRadius: '8px', width: '200px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
               zIndex: 1000, overflow: 'hidden'
             }}>
+              <div 
+                onClick={() => { setShowHistoryModal(true); setShowProfileMenu(false); }} 
+                style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+              >
+                📊 ประวัติการใช้งาน
+              </div>
               <div 
                 onClick={() => { setShowExportModal(true); setShowProfileMenu(false); }} 
                 style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
@@ -515,7 +519,7 @@ function App() {
                 ⚙️ ตั้งค่า
               </div>
               <div 
-                onClick={() => { setShowProfileMenu(false); handleLogout(); }} 
+                onClick={() => { setShowLogoutModal(true); setShowProfileMenu(false); }} 
                 style={{ padding: '12px 15px', color: '#ff4d4d', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
                 onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
                 onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
@@ -594,6 +598,7 @@ function App() {
                 </div>
               ) : (
                 <>
+                  <div style={{ fontSize: '24px' }}>📥</div>
                   <div style={{ color: '#d4af37', fontWeight: 'bold', fontSize: '15px' }}>อัปโหลดสลิป</div>
                   <div style={{ fontSize: '12px', color: '#888' }}>ลากไฟล์มาวาง, คลิกเลือกไฟล์, หรือกด Ctrl+V เพื่อวางภาพ</div>
                 </>
@@ -605,21 +610,19 @@ function App() {
         </form>
       </div>
 
-      <div className="card no-print">
-        <div onClick={() => setShowHistory(!showHistory)} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}>
-          <h3 style={{ margin: 0 }}>ประวัติการใช้งาน</h3>
-          <span style={{ fontSize: '14px', color: '#d4af37', fontWeight: 'bold' }}>{showHistory ? '▼ ซ่อนประวัติ' : '▶ ดูประวัติ'}</span>
-        </div>
-        
-        {showHistory && (
-          <div style={{ marginTop: '20px' }}>
+      {/* Modal / Popup: ประวัติการใช้งาน */}
+      {showHistoryModal && (
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
+          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+            <button onClick={() => setShowHistoryModal(false)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer' }}>✕</button>
+            <h2 style={{ marginTop: 0, color: '#d4af37' }}>ประวัติการใช้งาน</h2>
+            
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
               <button type="button" style={tabStyle('week')} onClick={() => setViewMode('week')}>รายสัปดาห์</button>
               <button type="button" style={tabStyle('month')} onClick={() => setViewMode('month')}>รายเดือน</button>
             </div>
 
-            {/* ช่องเลือกวันที่เฉพาะเมื่ออยู่ในโหมดรายวัน */}
             {viewMode === 'day' && (
               <div style={{ marginBottom: '15px', backgroundColor: '#2a2a2a', padding: '12px', borderRadius: '8px', border: '1px solid #444' }}>
                 <label style={{ fontSize: '13px', color: '#aaa', display: 'block', marginBottom: '5px' }}>📅 เลือกวันที่ต้องการดู:</label>
@@ -632,7 +635,7 @@ function App() {
               </div>
             )}
 
-            {sortedGroups.length === 0 && <p style={{ textAlign: 'center', color: '#888' }}>ยังไม่มีรายการในวันนี้</p>}
+            {sortedGroups.length === 0 && <p style={{ textAlign: 'center', color: '#888', padding: '20px 0' }}>ยังไม่มีรายการ</p>}
             {sortedGroups.map(groupKey => {
               const isOpen = expandedGroups[groupKey] !== false; 
               return (
@@ -668,8 +671,22 @@ function App() {
               )
             })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Modal / Popup: ยืนยันออกจากระบบ */}
+      {showLogoutModal && (
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
+          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '350px', padding: '25px', borderRadius: '12px', textAlign: 'center' }}>
+            <h3 style={{ marginTop: 0, color: '#d4af37' }}>ออกจากระบบ</h3>
+            <p style={{ color: '#aaa', fontSize: '14px', marginBottom: '20px' }}>คุณต้องการออกจากระบบใช่หรือไม่?</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setShowLogoutModal(false)} style={{ flex: 1, padding: '10px', backgroundColor: '#333', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>ยกเลิก</button>
+              <button onClick={() => { setShowLogoutModal(false); signOut(auth); }} style={{ flex: 1, padding: '10px', backgroundColor: '#ff4d4d', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>ออกจากระบบ</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {viewSlipImage && (
         <div className="no-print" onClick={() => setViewSlipImage(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, cursor: 'zoom-out' }}>
@@ -677,6 +694,7 @@ function App() {
         </div>
       )}
 
+      {/* Modal / Popup: สรุป PDF */}
       {showExportModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', padding: '20px', borderRadius: '12px', position: 'relative' }}>
