@@ -186,11 +186,13 @@ function App() {
     }
   };
 
+  // ปรับปรุงระบบ OCR ให้ใช้โหมด 'eng' เพื่อความเร็วและความแม่นยำในการดึงตัวเลขยอดเงิน
   const scanSlipOCR = async (imageSrc) => {
     try {
-      const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
+      const { data: { text } } = await Tesseract.recognize(imageSrc, 'eng');
       console.log("OCR Text:", text);
 
+      // ค้นหาตัวเลขยอดเงินแบบยืดหยุ่นขึ้น (รองรับจุดทศนิยม)
       const amountRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}/g;
       const amounts = text.match(amountRegex);
       let detectedAmount = '';
@@ -210,7 +212,7 @@ function App() {
           matchedWallet = w.name;
           if (isAccNumMatch || isAccNameMatch) {
             const lowerText = text.toLowerCase();
-            if (lowerText.includes('รับเงิน') || lowerText.includes('ยอดเงินเข้า')) {
+            if (lowerText.includes('receive') || lowerText.includes('in') || lowerText.includes('รับ')) {
               detectedType = 'Income';
             } else {
               detectedType = 'Expense';
@@ -242,14 +244,14 @@ function App() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 600; 
+        const MAX_WIDTH = 800; // เพิ่มความกว้างเพื่อให้ตัวเลขคมชัดขึ้นสำหรับ OCR
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
         setFormData(prev => ({ ...prev, slip: dataUrl }));
         setSlipError(false);
         scanSlipOCR(dataUrl);
