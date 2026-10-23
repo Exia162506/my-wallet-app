@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './index.css';
 
-// นำเข้า Tesseract (รองรับไทย + อังกฤษ เพื่อให้อ่านคำว่า รับ/เข้า และชื่อบัญชีได้)
+// นำเข้า Tesseract สำหรับระบบสแกนสลิปอัตโนมัติ
 import Tesseract from 'tesseract.js';
 
 // นำเข้าโมดูลของ Firebase
@@ -76,6 +76,9 @@ function App() {
   const [selectedDay, setSelectedDay] = useState(new Date().toISOString().split('T')[0]); 
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [viewSlipImage, setViewSlipImage] = useState(null);
+
+  // State สำหรับ Custom Popup Modal แทน alert เดิม
+  const [customAlert, setCustomAlert] = useState(null);
 
   const [wallets, setWallets] = useState(() => {
     const saved = localStorage.getItem('my_wallet_settings_v3');
@@ -186,7 +189,6 @@ function App() {
     }
   };
 
-  // ระบบสแกน OCR รองรับทั้งภาษาไทยและอังกฤษ พร้อมเช็คคำว่า รับ/เข้า เพื่อปรับเป็นรายรับอัตโนมัติ
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
@@ -194,7 +196,6 @@ function App() {
 
       let detectedAmount = '';
 
-      // ค้นหายอดเงินที่มีทศนิยม .xx ก่อน
       const decimalRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}|[0-9]+\.[0-9]{2}/g;
       const decimalMatches = text.match(decimalRegex);
 
@@ -217,9 +218,8 @@ function App() {
       }
 
       let matchedWallet = null;
-      let detectedType = 'Expense'; // ค่าเริ่มต้นเป็นรายจ่าย
+      let detectedType = 'Expense'; 
 
-      // ตรวจสอบคำว่า "รับ", "เข้า", "receive", "in" บนสลิป เพื่อระบุว่าเป็นรายรับ
       const lowerText = text.toLowerCase();
       if (
         lowerText.includes('รับเงิน') || 
@@ -227,7 +227,7 @@ function App() {
         lowerText.includes('รับโอน') || 
         lowerText.includes('receive') || 
         lowerText.includes('transfer in') ||
-        lowerText.includes('โอนเงินสำเร็จ') // หรือเช็คว่าบัญชีเราเป็นผู้รับ
+        lowerText.includes('โอนเงินสำเร็จ')
       ) {
         detectedType = 'Income';
       }
@@ -247,7 +247,7 @@ function App() {
         ...prev,
         amount: detectedAmount || prev.amount,
         type: detectedType,
-        category: CATEGORIES[detectedType][0], // ปรับหมวดหมู่ให้ตรงกับประเภทอัตโนมัติ
+        category: CATEGORIES[detectedType][0], 
         wallet: matchedWallet && prev.type !== 'Transfer' ? matchedWallet : prev.wallet
       }));
 
@@ -298,38 +298,43 @@ function App() {
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
-  const handleGoogleLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch (e) { alert("Google Login Error"); } };
-  const handleFacebookLogin = async () => { try { await signInWithPopup(auth, facebookProvider); } catch (e) { alert("Facebook Login Error"); } };
+  const handleGoogleLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch (e) { setCustomAlert("เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google"); } };
+  const handleFacebookLogin = async () => { try { await signInWithPopup(auth, facebookProvider); } catch (e) { setCustomAlert("เกิดข้อผิดพลาด: กรุณาตรวจสอบการตั้งค่า Facebook Login ใน Firebase Console"); } };
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    try { await signInWithEmailAndPassword(auth, authEmail, authPassword); } catch (e) { alert("❌ เข้าสู่ระบบไม่สำเร็จ"); }
+    try { await signInWithEmailAndPassword(auth, authEmail, authPassword); } catch (e) { setCustomAlert("❌ เข้าสู่ระบบไม่สำเร็จ: อีเมลหรือรหัสผ่านไม่ถูกต้อง"); }
   };
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
-    if (authPassword !== confirmPassword) { alert("❌ รหัสผ่านไม่ตรงกัน"); return; }
-    if (authPassword.length < 6) { alert("❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
+    if (authPassword !== confirmPassword) { setCustomAlert("❌ รหัสผ่านทั้งสองครั้งไม่ตรงกัน!"); return; }
+    if (authPassword.length < 6) { setCustomAlert("❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(otp);
     setTempRegData({ email: authEmail, password: authPassword });
-    alert(`📱 OTP ทดสอบของคุณคือ: [ ${otp} ]`);
+    setCustomAlert(`📱 ระบบได้ส่งรหัส OTP ไปยังอีเมลของคุณแล้ว\n\n🔑 รหัส OTP ทดสอบของคุณคือ: [ ${otp} ]`);
     setAuthMode('verify-otp');
   };
   const handleVerifyOtpSubmit = async (e) => {
     e.preventDefault();
-    if (inputOtp !== generatedOtp) { alert("❌ OTP ไม่ถูกต้อง"); return; }
+    if (inputOtp !== generatedOtp) { setCustomAlert("❌ รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง"); return; }
     try {
       await createUserWithEmailAndPassword(auth, tempRegData.email, tempRegData.password);
-      alert("✅ สมัครสมาชิกสำเร็จ!");
+      setCustomAlert("✅ ยืนยัน OTP และสร้างบัญชีสำเร็จ!");
       setAuthMode('login');
-    } catch (error) { alert("❌ " + error.message); }
+      setInputOtp('');
+      setAuthEmail('');
+      setAuthPassword('');
+      setConfirmPassword('');
+    } catch (error) { setCustomAlert("❌ เกิดข้อผิดพลาด: " + error.message); setAuthMode('register'); }
   };
   const handleForgotPassword = async (e) => {
     e.preventDefault();
+    if (!authEmail) { setCustomAlert("กรุณากรอกอีเมลของคุณก่อนครับ"); return; }
     try {
       await sendPasswordResetEmail(auth, authEmail);
-      alert(`✅ ส่งลิงก์รีเซ็ตรหัสผ่านไปที่ ${authEmail} แล้ว`);
+      setCustomAlert(`✅ ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมล ${authEmail} เรียบร้อยแล้ว`);
       setAuthMode('login');
-    } catch (e) { alert("❌ ไม่พบอีเมลนี้ในระบบ"); }
+    } catch (e) { setCustomAlert("❌ เกิดข้อผิดพลาด: ไม่พบอีเมลนี้ในระบบ"); }
   };
 
   const handleChange = (e) => {
@@ -351,7 +356,7 @@ function App() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.amount || !user) return;
-    if (!formData.slip) { setSlipError(true); alert("⚠️ กรุณาแนบสลิปก่อนบันทึก"); return; }
+    if (!formData.slip) { setSlipError(true); setCustomAlert("⚠️ กรุณาแนบสลิปหรือหลักฐานการทำรายการก่อนบันทึกครับ"); return; }
     
     const newTransaction = {
       userId: user.uid, 
@@ -372,12 +377,14 @@ function App() {
       setFormData({ ...formData, amount: '', note: '', slip: null }); 
       if (fileInputRef.current) fileInputRef.current.value = "";
       setSlipError(false);
-      alert("✅ บันทึกรายการสำเร็จ!");
-    } catch (error) { alert("เกิดข้อผิดพลาด"); }
+      setCustomAlert("✅ บันทึกรายการสำเร็จ!");
+    } catch (error) { setCustomAlert("เกิดข้อผิดพลาดในการบันทึกข้อมูล"); }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) await deleteDoc(doc(db, "transactions", id));
+    if(window.confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
+      await deleteDoc(doc(db, "transactions", id)); 
+    }
   };
 
   const toggleGroup = (groupKey) => {
@@ -532,8 +539,6 @@ function App() {
         {`
           @media screen {
             .print-only { display: none !important; }
-            .wallet-scroll::-webkit-scrollbar { display: none; }
-            .wallet-scroll { -ms-overflow-style: none; scrollbar-width: none; }
           }
           @media print {
             .no-print { display: none !important; }
@@ -545,6 +550,16 @@ function App() {
           }
         `}
       </style>
+
+      {/* Custom Popup Modal แทน Alert ของเบราว์เซอร์ */}
+      {customAlert && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '20px' }}>
+          <div style={{ backgroundColor: '#1e1e1e', border: '1px solid #d4af37', padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '340px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
+            <p style={{ color: '#fff', fontSize: '15px', marginBottom: '20px', whiteSpace: 'pre-line', lineHeight: '1.5' }}>{customAlert}</p>
+            <button onClick={() => setCustomAlert(null)} style={{ backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', border: 'none', padding: '10px 25px', borderRadius: '8px', cursor: 'pointer', width: '100%', fontSize: '15px' }}>ตกลง</button>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#1e1e1e', padding: '10px 20px', borderRadius: '12px' }}>
@@ -571,9 +586,16 @@ function App() {
           รายรับ {currentMonthIncome.toLocaleString()} | รายจ่าย {currentMonthExpense.toLocaleString()} (เดือนนี้)
         </div>
 
-        <div className="wallet-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '12px', paddingBottom: '10px', marginTop: '15px', snapType: 'x mandatory' }}>
+        {/* ส่วนแสดงบัญชี: 1 บัญชีอยู่ตรงกลาง, 2 บัญชีหรือมากกว่าจัดเรียงแถวละ 2 อย่างสมดุล */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: activeWallets.length === 1 ? 'minmax(160px, 240px)' : 'repeat(2, minmax(0, 1fr))', 
+          justifyContent: 'center', 
+          gap: '12px', 
+          marginTop: '15px' 
+        }}>
           {activeWallets.map(w => (
-            <div key={w.id} style={{ minWidth: '140px', backgroundColor: '#2a2a2a', borderLeft: `4px solid ${w.color}`, padding: '12px 15px', borderRadius: '8px', textAlign: 'left', flexShrink: 0, scrollSnapAlign: 'start', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
+            <div key={w.id} style={{ backgroundColor: '#2a2a2a', borderLeft: `4px solid ${w.color}`, padding: '12px 15px', borderRadius: '8px', textAlign: 'left', boxShadow: '0 2px 5px rgba(0,0,0,0.2)', boxSizing: 'border-box', width: '100%' }}>
               <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</div>
               <div style={{ fontSize: '16px', fontWeight: 'bold', color: (walletBalances[w.name] || 0) < 0 ? '#ff4d4d' : '#fff' }}>
                 ฿{(walletBalances[w.name] || 0).toLocaleString()}
@@ -741,7 +763,7 @@ function App() {
                         onChange={(e) => {
                           const newWallets = [...wallets];
                           if (!e.target.checked && activeWallets.length === 1) {
-                            alert("⚠️ ต้องเปิดใช้งานอย่างน้อย 1 บัญชีครับ");
+                            setCustomAlert("⚠️ ต้องเปิดใช้งานอย่างน้อย 1 บัญชีครับ");
                             return;
                           }
                           newWallets[index].active = e.target.checked;
