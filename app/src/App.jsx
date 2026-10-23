@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import './index.css';
 
+// นำเข้า Tesseract สำหรับระบบสแกนสลิปอัตโนมัติ
+import Tesseract from 'tesseract.js';
+
 // นำเข้าโมดูลของ Firebase
 import { initializeApp } from "firebase/app";
 import { 
@@ -84,19 +87,17 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
-  // ระบบกระเป๋าเงิน (ดึงค่าการตั้งค่าจาก Local Storage ถ้ามี)
+  // ระบบกระเป๋าเงิน
   const [wallets, setWallets] = useState(() => {
     const saved = localStorage.getItem('my_wallet_settings_v1');
     if (saved) return JSON.parse(saved);
     return DEFAULT_WALLETS;
   });
 
-  // บันทึกการตั้งค่ากระเป๋าเงินลงเครื่องทันทีที่มีการเปลี่ยนแปลง
   useEffect(() => {
     localStorage.setItem('my_wallet_settings_v1', JSON.stringify(wallets));
   }, [wallets]);
 
-  // คัดกรองเฉพาะบัญชีที่เปิดใช้งาน (active: true)
   const activeWallets = wallets.filter(w => w.active);
 
   // สถานะหน้า Auth
@@ -111,9 +112,12 @@ function App() {
   // สถานะ Popup
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [showSettingsModal, setShowSettingsModal] = useState(false); // เพิ่ม Modal ตั้งค่า
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
+
+  // สถานะระบบสแกนสลิป
+  const [isScanning, setIsScanning] = useState(false);
 
   const [slipError, setSlipError] = useState(false);
   const [exportStart, setExportStart] = useState('');
@@ -132,7 +136,6 @@ function App() {
     toWallet: 'เงินสด'
   });
 
-  // อัปเดตค่าเริ่มต้นในฟอร์มหากผู้ใช้มีการ ปิด บัญชีที่กำลังเลือกอยู่ทิ้งไป
   useEffect(() => {
     if (activeWallets.length > 0) {
       const activeNames = activeWallets.map(w => w.name);
@@ -165,6 +168,47 @@ function App() {
     }
   }, [user]);
 
+  // ฟังก์ชันระบบอ่านสลิป (OCR)
+  const scanSlipOCR = async (imageSrc) => {
+    setIsScanning(true);
+    try {
+      // ใช้ Tesseract อ่านภาพ (รองรับไทยและอังกฤษ)
+      const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
+      console.log("OCR Extracted Text:", text); // ไว้ดูใน Console ได้ว่ามันอ่านอะไรออกบ้าง
+
+      // 1. ดึงยอดเงิน (หารูปแบบตัวเลขที่มีคอมม่าและลงท้ายด้วยทศนิยม 2 ตำแหน่ง)
+      const amountRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}/g;
+      const amounts = text.match(amountRegex);
+      let detectedAmount = '';
+      if (amounts && amounts.length > 0) {
+        // ส่วนใหญ่ยอดเงินหลักจะอยู่ท้ายๆ หรือดึงยอดแรกมา
+        detectedAmount = amounts[0].replace(/,/g, ''); 
+      }
+
+      // 2. ดึงชื่อธนาคาร / กระเป๋าเงิน
+      const lowerText = text.toLowerCase();
+      let detectedWallet = null;
+      if (lowerText.includes('kbank') || text.includes('กสิกร')) detectedWallet = 'กสิกรไทย (KBank)';
+      else if (lowerText.includes('scb') || text.includes('ไทยพาณิชย์')) detectedWallet = 'ไทยพาณิชย์ (SCB)';
+      else if (lowerText.includes('ktb') || text.includes('กรุงไทย')) detectedWallet = 'กรุงไทย (KTB)';
+      else if (lowerText.includes('bbl') || text.includes('กรุงเทพ')) detectedWallet = 'กรุงเทพ (BBL)';
+      else if (lowerText.includes('truemoney') || text.includes('ทรูมันนี่')) detectedWallet = 'TrueMoney';
+      else if (lowerText.includes('krungsri') || text.includes('กรุงศรี')) detectedWallet = 'กรุงศรี (Krungsri)';
+
+      // อัปเดตข้อมูลเข้าฟอร์ม
+      setFormData(prev => ({
+        ...prev,
+        amount: detectedAmount || prev.amount, // ถ้าสแกนเจอให้ใส่แทน ถ้าไม่เจอให้คงค่าเดิมไว้
+        wallet: detectedWallet && activeWallets.map(w=>w.name).includes(detectedWallet) ? detectedWallet : prev.wallet,
+        fromWallet: detectedWallet && prev.type === 'Transfer' && activeWallets.map(w=>w.name).includes(detectedWallet) ? detectedWallet : prev.fromWallet
+      }));
+
+    } catch (error) {
+      console.error("OCR Scan Failed:", error);
+    }
+    setIsScanning(false);
+  };
+
   const processFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     const reader = new FileReader();
@@ -172,14 +216,19 @@ function App() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 400; 
+        const MAX_WIDTH = 600; // ปรับความคมชัดขึ้นมาหน่อยเพื่อให้ OCR อ่านง่ายขึ้น
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        setFormData(prev => ({ ...prev, slip: canvas.toDataURL('image/jpeg', 0.7) }));
+        
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        setFormData(prev => ({ ...prev, slip: dataUrl }));
         setSlipError(false);
+        
+        // เรียกใช้ฟังก์ชันสแกน OCR ทันทีที่แปลงรูปเสร็จ
+        scanSlipOCR(dataUrl);
       };
       img.src = event.target.result;
     };
@@ -381,7 +430,6 @@ function App() {
 
   const sortedGroups = Object.keys(groupedTransactions).sort((a, b) => new Date(groupedTransactions[b].sortDate) - new Date(groupedTransactions[a].sortDate));
 
-  // คำนวณยอดเงินรวมและยอดคงเหลือรายบัญชี
   const walletBalances = {};
   let totalBalance = 0;
 
@@ -535,7 +583,6 @@ function App() {
         {`
           @media screen {
             .print-only { display: none !important; }
-            /* ซ่อน Scrollbar ของการ์ดกระเป๋าเงินเพื่อความสวยงาม */
             .wallet-scroll::-webkit-scrollbar { display: none; }
             .wallet-scroll { -ms-overflow-style: none; scrollbar-width: none; }
           }
@@ -610,7 +657,6 @@ function App() {
           รายรับ {currentMonthIncome.toLocaleString()} | รายจ่าย {currentMonthExpense.toLocaleString()} (เดือนนี้)
         </div>
 
-        {/* แถบเลื่อนแสดงยอดเงินแยกบัญชี เฉพาะอันที่เปิดใช้งาน */}
         <div className="wallet-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '12px', paddingBottom: '10px', marginTop: '15px', snapType: 'x mandatory' }}>
           {activeWallets.map(w => (
             <div key={w.id} style={{ minWidth: '140px', backgroundColor: '#2a2a2a', borderLeft: `4px solid ${w.color}`, padding: '12px 15px', borderRadius: '8px', textAlign: 'left', flexShrink: 0, scrollSnapAlign: 'start', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
@@ -638,7 +684,6 @@ function App() {
             </select>
           </div>
 
-          {/* ส่วนของการเลือกบัญชีที่ซิงค์กับการตั้งค่า */}
           {formData.type === 'Transfer' ? (
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '15px', backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '8px' }}>
               <div style={{ flex: 1 }}>
@@ -686,9 +731,19 @@ function App() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px'
+                gap: '6px',
+                position: 'relative'
               }}
             >
+              {/* Overlay แสดงสถานะตอนกำลังสแกน OCR */}
+              {isScanning && (
+                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
+                  <div className="spinner" style={{ width: '30px', height: '30px', border: '3px solid rgba(212,175,55,0.3)', borderTopColor: '#d4af37', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
+                  <p style={{ color: '#d4af37', fontSize: '12px', marginTop: '10px', fontWeight: 'bold' }}>กำลังสแกนสลิปอัตโนมัติ...</p>
+                  <style>{`@keyframes spin { 100% { transform: rotate(360deg); } }`}</style>
+                </div>
+              )}
+
               <input 
                 type="file" 
                 accept="image/*" 
@@ -700,7 +755,7 @@ function App() {
               {formData.slip ? (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
                   <img src={formData.slip} alt="preview" style={{ maxHeight: '110px', borderRadius: '8px', border: '1px solid #444', display: 'block' }} />
-                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderBottomLeftRadius: '8px', borderTopRightRadius: '8px', width: '28px', height: '28px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderBottomLeftRadius: '8px', borderTopRightRadius: '8px', width: '28px', height: '28px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>✕</button>
                 </div>
               ) : (
                 <>
@@ -712,41 +767,25 @@ function App() {
             </div>
           </div>
 
-          <button type="submit" style={{ marginTop: '15px' }}>บันทึกรายการ</button>
+          <button type="submit" style={{ marginTop: '15px', opacity: isScanning ? 0.5 : 1 }} disabled={isScanning}>
+            {isScanning ? 'กำลังประมวลผล...' : 'บันทึกรายการ'}
+          </button>
         </form>
       </div>
 
-      {/* Modal / Popup: การตั้งค่าบัญชีธนาคาร (เพิ่มใหม่) */}
+      {/* Modal: ตั้งค่า */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
-          
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
-            
-            {/* โครงสร้างส่วนหัวแบบตายตัว แยกออกจากตัวหนังสือเด็ดขาด */}
             <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
               <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ตั้งค่าบัญชีธนาคาร</h2>
               <button 
                 onClick={() => setShowSettingsModal(false)} 
-                style={{ 
-                  position: 'absolute', 
-                  top: '20px', 
-                  right: '20px', 
-                  background: 'none', 
-                  border: 'none', 
-                  color: '#aaa', 
-                  fontSize: '24px', 
-                  cursor: 'pointer', 
-                  padding: 0, 
-                  lineHeight: '1' 
-                }}
-              >
-                ✕
-              </button>
+                style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}
+              >✕</button>
             </div>
-            
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <p style={{ color: '#aaa', fontSize: '14px', marginTop: 0, marginBottom: '20px' }}>เลือกเปิด/ปิด บัญชีธนาคารหรือกระเป๋าเงินที่คุณต้องการให้แสดงในแอป</p>
-              
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {wallets.map((w, index) => (
                   <div key={w.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 15px', backgroundColor: '#2a2a2a', borderRadius: '8px', borderLeft: `4px solid ${w.color}` }}>
@@ -757,7 +796,6 @@ function App() {
                         checked={w.active} 
                         onChange={(e) => {
                           const newWallets = [...wallets];
-                          // ป้องกันไม่ให้ปิดจนหมด ต้องเหลืออย่างน้อย 1 บัญชี
                           if (!e.target.checked && activeWallets.length === 1) {
                             alert("⚠️ ต้องเปิดใช้งานอย่างน้อย 1 บัญชีครับ");
                             return;
@@ -776,34 +814,17 @@ function App() {
         </div>
       )}
 
-      {/* Modal / Popup: ประวัติการใช้งาน */}
+      {/* Modal: ประวัติการใช้งาน */}
       {showHistoryModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
-          
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '650px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
-            
-            {/* โครงสร้างส่วนหัวแบบตายตัว แยกออกจากตัวหนังสือเด็ดขาด */}
             <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
               <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ประวัติการใช้งาน</h2>
               <button 
                 onClick={() => setShowHistoryModal(false)} 
-                style={{ 
-                  position: 'absolute', 
-                  top: '20px', 
-                  right: '20px', 
-                  background: 'none', 
-                  border: 'none', 
-                  color: '#aaa', 
-                  fontSize: '24px', 
-                  cursor: 'pointer', 
-                  padding: 0, 
-                  lineHeight: '1' 
-                }}
-              >
-                ✕
-              </button>
+                style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}
+              >✕</button>
             </div>
-            
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
                 <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
@@ -814,12 +835,7 @@ function App() {
               {viewMode === 'day' && (
                 <div style={{ marginBottom: '15px', backgroundColor: '#2a2a2a', padding: '12px', borderRadius: '8px', border: '1px solid #444' }}>
                   <label style={{ fontSize: '13px', color: '#aaa', display: 'block', marginBottom: '5px' }}>📅 เลือกวันที่ต้องการดู:</label>
-                  <input 
-                    type="date" 
-                    value={selectedDay} 
-                    onChange={(e) => setSelectedDay(e.target.value)} 
-                    style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #555', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}
-                  />
+                  <input type="date" value={selectedDay} onChange={(e) => setSelectedDay(e.target.value)} style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #555', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}/>
                 </div>
               )}
 
@@ -866,7 +882,7 @@ function App() {
         </div>
       )}
 
-      {/* Modal / Popup: ยืนยันออกจากระบบ */}
+      {/* Modal: ยืนยันออกจากระบบ */}
       {showLogoutModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '350px', padding: '25px', borderRadius: '12px', textAlign: 'center' }}>
@@ -880,38 +896,23 @@ function App() {
         </div>
       )}
 
+      {/* Modal: ขยายรูปสลิป */}
       {viewSlipImage && (
         <div className="no-print" onClick={() => setViewSlipImage(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, cursor: 'zoom-out' }}>
           <img src={viewSlipImage} alt="slip-full" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '12px' }} />
         </div>
       )}
 
-      {/* Modal / Popup: สรุป PDF */}
+      {/* Modal: สรุป PDF */}
       {showExportModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
-          
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '600px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
-            
-            {/* โครงสร้างส่วนหัวแบบตายตัว แยกออกจากตัวหนังสือเด็ดขาด */}
             <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
               <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ออกรายงาน PDF</h2>
               <button 
                 onClick={() => setShowExportModal(false)} 
-                style={{ 
-                  position: 'absolute', 
-                  top: '20px', 
-                  right: '20px', 
-                  background: 'none', 
-                  border: 'none', 
-                  color: '#aaa', 
-                  fontSize: '24px', 
-                  cursor: 'pointer', 
-                  padding: 0, 
-                  lineHeight: '1' 
-                }}
-              >
-                ✕
-              </button>
+                style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}
+              >✕</button>
             </div>
             
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
