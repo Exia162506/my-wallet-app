@@ -42,7 +42,6 @@ const CATEGORIES = {
   Transfer: ['โอนย้ายเงินภายใน'] 
 };
 
-// ค่าเริ่มต้น (เพิ่ม accountNumber และ accountName)
 const DEFAULT_WALLETS = [
   { id: 'Cash', name: 'เงินสด', accountNumber: '-', accountName: '-', color: '#d4af37', active: true, custom: false },
   { id: 'KBank', name: 'กสิกรไทย (KBank)', accountNumber: '', accountName: '', color: '#138f2d', active: true, custom: false },
@@ -84,7 +83,6 @@ function App() {
     return DEFAULT_WALLETS;
   });
 
-  // ฟอร์มสำหรับลงทะเบียนบัญชีใหม่
   const [newWalletName, setNewWalletName] = useState('');
   const [newAccountName, setNewAccountName] = useState('');
   const [newAccountNumber, setNewAccountNumber] = useState('');
@@ -159,7 +157,6 @@ function App() {
     }
   }, [user]);
 
-  // ฟังก์ชันเพิ่มบัญชีที่ลงทะเบียนเลขบัญชี/ชื่อบัญชี
   const handleAddCustomWallet = (e) => {
     e.preventDefault();
     if (!newWalletName.trim()) return;
@@ -189,13 +186,11 @@ function App() {
     }
   };
 
-  // ระบบสแกน OCR อัจฉริยะ ตรวจสอบทั้งยอดเงิน และเทียบเลข/ชื่อบัญชีว่า เงินเข้า หรือ โอนออก
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
       console.log("OCR Text:", text);
 
-      // 1. ดึงยอดเงิน
       const amountRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}/g;
       const amounts = text.match(amountRegex);
       let detectedAmount = '';
@@ -203,24 +198,18 @@ function App() {
         detectedAmount = amounts[amounts.length - 1].replace(/,/g, ''); 
       }
 
-      // 2. ตรวจสอบธนาคารและเทียบกับบัญชีที่ผู้ใช้ลงทะเบียนไว้
       let matchedWallet = null;
-      let detectedType = formData.type; // ค่าเดิม
+      let detectedType = formData.type; 
 
       for (let w of activeWallets) {
-        // เช็คจากชื่อธนาคาร หรือ เลขบัญชี หรือ ชื่อบัญชี ที่ผู้ใช้กรอกไว้
         const isNameMatch = w.name && text.toLowerCase().includes(w.name.toLowerCase().split(' ')[0]);
         const isAccNumMatch = w.accountNumber && w.accountNumber !== '-' && text.includes(w.accountNumber);
         const isAccNameMatch = w.accountName && w.accountName !== '-' && text.includes(w.accountName);
 
         if (isNameMatch || isAccNumMatch || isAccNameMatch) {
           matchedWallet = w.name;
-          
-          // วิเคราะห์ว่าเป็นเงินเข้าหรือโอนออก โดยดูจากคีย์เวิร์ดใกล้เคียง
           if (isAccNumMatch || isAccNameMatch) {
-            // ค้นหาตำแหน่งข้อความเพื่อดูว่าเป็นผู้รับหรือผู้โอน
             const lowerText = text.toLowerCase();
-            // หากมีคำว่า "รับเงิน" หรือชื่อ/เลขบัญชีอยู่โซนผู้รับ ให้ตีเป็นรายรับ
             if (lowerText.includes('รับเงิน') || lowerText.includes('ยอดเงินเข้า')) {
               detectedType = 'Income';
             } else {
@@ -667,7 +656,7 @@ function App() {
         </form>
       </div>
 
-      {/* Modal: ตั้งค่าบัญชีธนาคาร (รองรับการลงทะเบียนชื่อ/เลขบัญชี) */}
+      {/* Modal: ตั้งค่าบัญชีธนาคาร */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
@@ -677,7 +666,6 @@ function App() {
             </div>
             
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-              {/* ฟอร์มลงทะเบียนบัญชีใหม่ */}
               <form onSubmit={handleAddCustomWallet} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px', backgroundColor: '#252525', padding: '15px', borderRadius: '10px', border: '1px solid #333' }}>
                 <h4 style={{ margin: '0 0 5px 0', color: '#d4af37', fontSize: '15px' }}>➕ ลงทะเบียนบัญชีใหม่สำหรับ OCR</h4>
                 <input 
@@ -884,7 +872,7 @@ function App() {
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>วันที่</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>ประเภท</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>หมวดบัญชี / บันทึก</th>
-              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' %>สลิป</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>สลิป</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>จำนวนเงิน (บาท)</th>
             </tr>
           </thead>
