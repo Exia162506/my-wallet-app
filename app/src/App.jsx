@@ -619,23 +619,22 @@ function App() {
 
       {/* Modal / Popup: ประวัติการใช้งาน */}
       {showHistoryModal && (
-        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
-          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
+          
+          {/* ปรับโครงสร้างกล่อง Modal ใหม่เป็น Flex Column แยกส่วนหัวและส่วนเนื้อหาเด็ดขาด */}
+          <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '650px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             
-            {/* ส่วนหัว Sticky ใช้ flex: 1 ดันปุ่ม X ไปขวาบนสุดเสมอ */}
+            {/* ส่วนหัว Fixed: ปุ่ม X จะอยู่ชิดขวาบนสุดเสมอไม่ว่าหน้าจอจะแคบแค่ไหน */}
             <div style={{ 
               display: 'flex', 
-              alignItems: 'center', 
-              position: 'sticky', 
-              top: 0, 
-              backgroundColor: '#1e1e1e', 
-              zIndex: 10, 
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '15px 20px', 
-              borderBottom: '1px solid #333'
+              justifyContent: 'space-between', 
+              alignItems: 'flex-start', 
+              padding: '20px', 
+              borderBottom: '1px solid #333', 
+              backgroundColor: '#1e1e1e',
+              flexShrink: 0
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', flex: 1 }}>ประวัติการใช้งาน</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', lineHeight: '1.3', paddingRight: '20px' }}>ประวัติการใช้งาน</h2>
               <button 
                 onClick={() => setShowHistoryModal(false)} 
                 style={{ 
@@ -644,15 +643,17 @@ function App() {
                   color: '#aaa', 
                   fontSize: '24px', 
                   cursor: 'pointer',
-                  padding: '0 0 0 15px',
-                  lineHeight: '1'
+                  padding: '0',
+                  lineHeight: '1',
+                  marginTop: '-2px'
                 }}
               >
                 ✕
               </button>
             </div>
             
-            <div style={{ padding: '20px', paddingTop: '15px' }}>
+            {/* ส่วนเนื้อหา Scrollable: เลื่อนเฉพาะเนื้อหาด้านล่าง */}
+            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
                 <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
                 <button type="button" style={tabStyle('week')} onClick={() => setViewMode('week')}>รายสัปดาห์</button>
@@ -733,23 +734,22 @@ function App() {
 
       {/* Modal / Popup: สรุป PDF */}
       {showExportModal && (
-        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
-          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
+          
+          {/* โครงสร้างใหม่ แยกส่วนหัวและเนื้อหาออกจากกัน */}
+          <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '600px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             
-            {/* ส่วนหัว Sticky ใช้ flex: 1 ดันปุ่ม X ไปขวาบนสุดเสมอ */}
+            {/* ส่วนหัว Fixed: ปุ่ม X จะอยู่ชิดขวาบนสุดเสมอ */}
             <div style={{ 
               display: 'flex', 
-              alignItems: 'center', 
-              position: 'sticky', 
-              top: 0, 
-              backgroundColor: '#1e1e1e', 
-              zIndex: 10, 
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '15px 20px', 
-              borderBottom: '1px solid #333'
+              justifyContent: 'space-between', 
+              alignItems: 'flex-start', 
+              padding: '20px', 
+              borderBottom: '1px solid #333', 
+              backgroundColor: '#1e1e1e',
+              flexShrink: 0
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', flex: 1 }}>ออกรายงาน PDF</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', lineHeight: '1.3', paddingRight: '20px' }}>ออกรายงาน PDF</h2>
               <button 
                 onClick={() => setShowExportModal(false)} 
                 style={{ 
@@ -758,15 +758,17 @@ function App() {
                   color: '#aaa', 
                   fontSize: '24px', 
                   cursor: 'pointer',
-                  padding: '0 0 0 15px',
-                  lineHeight: '1'
+                  padding: '0',
+                  lineHeight: '1',
+                  marginTop: '-2px'
                 }}
               >
                 ✕
               </button>
             </div>
             
-            <div style={{ padding: '20px', paddingTop: '15px' }}>
+            {/* ส่วนเนื้อหา Scrollable */}
+            <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <div style={{ flex: 1 }}>
                   <label style={{ fontSize: '14px', color: '#aaa' }}>ตั้งแต่วันที่</label>
