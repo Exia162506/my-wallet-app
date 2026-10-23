@@ -23,9 +23,11 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const provider = new GoogleAuthProvider();
 
+// อัปเดตหมวดหมู่ตามที่คุณต้องการ
 const CATEGORIES = {
-  Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'บิล/ค่าน้ำค่าไฟ', 'สุขภาพ', 'อื่นๆ'],
-  Income: ['เงินเดือน', 'รายได้เสริม', 'โบนัส', 'เงินคืน / ปันผล', 'อื่นๆ (รายรับ)']
+  Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'บิล/ค่าน้ำค่าไฟ', 'โอนไปบัญชีอื่น', 'อื่นๆ'], // เปลี่ยน 'สุขภาพ' เป็น 'โอนไปบัญชีอื่น'
+  Income: ['เงินเดือน', 'รายได้เสริม', 'โบนัส', 'เงินคืน / ปันผล', 'อื่นๆ (รายรับ)'],
+  Transfer: ['โอนบัญชีอื่น', 'เงินออม', 'อื่นๆ (โอน)'] // เพิ่มหมวดหมู่ใหม่สำหรับการโอนที่ยอดไม่ลด
 };
 
 const getWeekRange = (dateString) => {
@@ -198,8 +200,9 @@ function App() {
     }
     acc[key].items.push(curr);
     
+    // คำนวณรายรับ-รายจ่ายของกลุ่มนั้น (ไม่นับโอนเงิน Type: Transfer)
     if (curr.Type === 'Income') acc[key].totalIncome += curr.Amount;
-    else acc[key].totalExpense += curr.Amount;
+    else if (curr.Type === 'Expense') acc[key].totalExpense += curr.Amount;
     
     return acc;
   }, {});
@@ -208,8 +211,11 @@ function App() {
     return new Date(groupedTransactions[b].sortDate) - new Date(groupedTransactions[a].sortDate);
   });
 
+  // คำนวณยอดเงินคงเหลือรวม (นำเฉพาะรายรับลบรายจ่าย ไม่นับ Transfer)
   const totalBalance = transactions.reduce((acc, curr) => {
-    return curr.Type === 'Income' ? acc + Number(curr.Amount) : acc - Number(curr.Amount);
+    if (curr.Type === 'Income') return acc + Number(curr.Amount);
+    if (curr.Type === 'Expense') return acc - Number(curr.Amount);
+    return acc; // ถ้าเป็น Transfer ให้คืนค่าเดิมกลับไปโดยไม่นำไปบวกลบ
   }, 0);
 
   const currentMonth = new Date().toISOString().slice(0, 7); 
@@ -234,9 +240,6 @@ function App() {
     borderRadius: '8px'
   });
 
-  // --------------------------------------------------------
-  // หน้าจอสำหรับตอนที่ยังไม่ได้ Login
-  // --------------------------------------------------------
   if (!user) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '80vh' }}>
@@ -250,12 +253,8 @@ function App() {
     );
   }
 
-  // --------------------------------------------------------
-  // หน้าจอแอปพลิเคชันหลัก (หลังจาก Login แล้ว)
-  // --------------------------------------------------------
   return (
     <div>
-      {/* Header แสดงโปรไฟล์ผู้ใช้และปุ่ม Logout */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#1e1e1e', padding: '10px 20px', borderRadius: '12px' }}>
         <h2 className="text-gold" style={{ margin: 0 }}>My Wallet</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -264,7 +263,6 @@ function App() {
         </div>
       </div>
       
-      {/* Dashboard */}
       <div className="card" style={{ textAlign: 'center' }}>
         <p style={{ margin: 0, color: '#aaa' }}>ยอดเงินคงเหลือรวม</p>
         <h1 style={{ margin: '10px 0', fontSize: '36px', color: '#d4af37' }}>฿{totalBalance.toLocaleString()}</h1>
@@ -285,7 +283,6 @@ function App() {
         </div>
       </div>
 
-      {/* ฟอร์มเพิ่มข้อมูล */}
       <div className="card">
         <h3 style={{ marginTop: 0 }}>เพิ่มรายการใหม่</h3>
         <form onSubmit={handleSubmit}>
@@ -294,6 +291,7 @@ function App() {
             <select name="type" value={formData.type} onChange={handleChange}>
               <option value="Expense">รายจ่าย</option>
               <option value="Income">รายรับ</option>
+              <option value="Transfer">โอนเงิน (ยอดไม่ลด)</option>
             </select>
             <select name="category" value={formData.category} onChange={handleChange}>
               {CATEGORIES[formData.type].map(cat => (
@@ -340,7 +338,6 @@ function App() {
         </form>
       </div>
 
-      {/* การ์ดประวัติรายการ */}
       <div className="card">
         <div 
           onClick={() => setShowHistory(!showHistory)}
@@ -415,8 +412,12 @@ function App() {
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
-                            <div className={item.Type === 'Income' ? 'income-text' : 'expense-text'}>
-                              {item.Type === 'Income' ? '+' : '-'}฿{Number(item.Amount).toLocaleString()}
+                            {/* กำหนดสีข้อความตัวเลข: รายรับ(เขียว) รายจ่าย(แดง) โอนเงิน(ฟ้า) */}
+                            <div 
+                              className={item.Type === 'Income' ? 'income-text' : item.Type === 'Expense' ? 'expense-text' : ''}
+                              style={item.Type === 'Transfer' ? { color: '#4da6ff', fontWeight: 'bold' } : {}}
+                            >
+                              {item.Type === 'Income' ? '+' : item.Type === 'Expense' ? '-' : ''}฿{Number(item.Amount).toLocaleString()}
                             </div>
                             <button 
                               onClick={() => handleDelete(item.id)}
@@ -436,7 +437,6 @@ function App() {
         )}
       </div>
 
-      {/* Modal ป๊อปอัปดูรูปสลิปขนาดเต็ม */}
       {viewSlipImage && (
         <div 
           onClick={() => setViewSlipImage(null)}
