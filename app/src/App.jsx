@@ -589,7 +589,6 @@ function App() {
                 </div>
               ) : (
                 <>
-                  <div style={{ fontSize: '24px' }}>📥</div>
                   <div style={{ color: '#d4af37', fontWeight: 'bold', fontSize: '15px' }}>อัปโหลดสลิป</div>
                   <div style={{ fontSize: '12px', color: '#888' }}>ลากไฟล์มาวาง, คลิกเลือกไฟล์, หรือกด Ctrl+V เพื่อวางภาพ</div>
                 </>
