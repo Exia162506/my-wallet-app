@@ -42,13 +42,26 @@ const CATEGORIES = {
   Transfer: ['โอนย้ายเงินภายใน'] 
 };
 
+// รวมธนาคารและสถาบันการเงินในประเทศไทยทั้งหมด + บัญชีอื่นๆ
 const DEFAULT_WALLETS = [
   { id: 'Cash', name: 'เงินสด', accountNumber: '-', accountName: '-', color: '#d4af37', active: true, custom: false },
   { id: 'KBank', name: 'กสิกรไทย (KBank)', accountNumber: '', accountName: '', color: '#138f2d', active: true, custom: false },
   { id: 'SCB', name: 'ไทยพาณิชย์ (SCB)', accountNumber: '', accountName: '', color: '#4e2a84', active: true, custom: false },
   { id: 'KTB', name: 'กรุงไทย (KTB)', accountNumber: '', accountName: '', color: '#00aeeef', active: true, custom: false },
   { id: 'BBL', name: 'กรุงเทพ (BBL)', accountNumber: '', accountName: '', color: '#1e4598', active: true, custom: false },
-  { id: 'TrueMoney', name: 'TrueMoney', accountNumber: '', accountName: '', color: '#ff6600', active: true, custom: false }
+  { id: 'Krungsri', name: 'กรุงศรีอยุธยา (Krungsri)', accountNumber: '', accountName: '', color: '#fec43b', active: false, custom: false },
+  { id: 'TTB', name: 'ทีทีบี (ttb)', accountNumber: '', accountName: '', color: '#0050f0', active: false, custom: false },
+  { id: 'GSB', name: 'ออมสิน (GSB)', accountNumber: '', accountName: '', color: '#eb008b', active: false, custom: false },
+  { id: 'BAAC', name: 'ธ.ก.ส. (BAAC)', accountNumber: '', accountName: '', color: '#4b9b47', active: false, custom: false },
+  { id: 'GHB', name: 'ธอส. (GHBank)', accountNumber: '', accountName: '', color: '#ff6f00', active: false, custom: false },
+  { id: 'UOB', name: 'ยูโอบี (UOB)', accountNumber: '', accountName: '', color: '#003b7a', active: false, custom: false },
+  { id: 'CIMB', name: 'ซีไอเอ็มบี ไทย (CIMB)', accountNumber: '', accountName: '', color: '#7a0010', active: false, custom: false },
+  { id: 'KKP', name: 'เกียรตินาคินภัทร (KKP)', accountNumber: '', accountName: '', color: '#1a237e', active: false, custom: false },
+  { id: 'TISCO', name: 'ทิสโก้ (TISCO)', accountNumber: '', accountName: '', color: '#004d40', active: false, custom: false },
+  { id: 'LHBank', name: 'แลนด์ แอนด์ เฮ้าส์ (LH Bank)', accountNumber: '', accountName: '', color: '#00838f', active: false, custom: false },
+  { id: 'ThaiCredit', name: 'ไทยเครดิต (Thai Credit)', accountNumber: '', accountName: '', color: '#b71c1c', active: false, custom: false },
+  { id: 'TrueMoney', name: 'TrueMoney Wallet', accountNumber: '', accountName: '', color: '#ff6600', active: true, custom: false },
+  { id: 'Other', name: 'บัญชีอื่นๆ (Other)', accountNumber: '', accountName: '', color: '#607d8b', active: false, custom: false }
 ];
 
 const getWeekRange = (dateString) => {
@@ -77,11 +90,10 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
-  // State สำหรับ Custom Popup Modal แทน alert เดิม
   const [customAlert, setCustomAlert] = useState(null);
 
   const [wallets, setWallets] = useState(() => {
-    const saved = localStorage.getItem('my_wallet_settings_v3');
+    const saved = localStorage.getItem('my_wallet_settings_v4');
     if (saved) return JSON.parse(saved);
     return DEFAULT_WALLETS;
   });
@@ -91,7 +103,7 @@ function App() {
   const [newAccountNumber, setNewAccountNumber] = useState('');
 
   useEffect(() => {
-    localStorage.setItem('my_wallet_settings_v3', JSON.stringify(wallets));
+    localStorage.setItem('my_wallet_settings_v4', JSON.stringify(wallets));
   }, [wallets]);
 
   const activeWallets = wallets.filter(w => w.active);
@@ -159,6 +171,17 @@ function App() {
       setTransactions([]); 
     }
   }, [user]);
+
+  // ฟังก์ชันเลื่อนลำดับบัญชีขึ้นหรือลง
+  const moveWallet = (index, direction) => {
+    const newWallets = [...wallets];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= newWallets.length) return;
+    const temp = newWallets[index];
+    newWallets[index] = newWallets[targetIndex];
+    newWallets[targetIndex] = temp;
+    setWallets(newWallets);
+  };
 
   const handleAddCustomWallet = (e) => {
     e.preventDefault();
@@ -551,7 +574,7 @@ function App() {
         `}
       </style>
 
-      {/* Custom Popup Modal แทน Alert ของเบราว์เซอร์ */}
+      {/* Custom Popup Modal */}
       {customAlert && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 2000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', border: '1px solid #d4af37', padding: '25px', borderRadius: '12px', width: '100%', maxWidth: '340px', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.6)' }}>
@@ -586,7 +609,7 @@ function App() {
           รายรับ {currentMonthIncome.toLocaleString()} | รายจ่าย {currentMonthExpense.toLocaleString()} (เดือนนี้)
         </div>
 
-        {/* ส่วนแสดงบัญชี: 1 บัญชีอยู่ตรงกลาง, 2 บัญชีหรือมากกว่าจัดเรียงแถวละ 2 อย่างสมดุล */}
+        {/* ส่วนแสดงบัญชี: 1 บัญชีอยู่ตรงกลาง, 2 บัญชีขึ้นไปจัดเรียงแถวละ 2 อย่างสมดุล */}
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: activeWallets.length === 1 ? 'minmax(160px, 240px)' : 'repeat(2, minmax(0, 1fr))', 
@@ -702,7 +725,7 @@ function App() {
         </form>
       </div>
 
-      {/* Modal: ตั้งค่าบัญชีธนาคาร */}
+      {/* Modal: ตั้งค่าบัญชีธนาคาร (รองรับการเลื่อนลำดับขึ้นลง) */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
@@ -739,7 +762,7 @@ function App() {
                 <button type="submit" style={{ width: '100%', padding: '10px', backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', border: 'none', borderRadius: '6px', cursor: 'pointer', marginTop: '5px' }}>บันทึกบัญชีนี้</button>
               </form>
 
-              <p style={{ color: '#aaa', fontSize: '13px', marginTop: 0, marginBottom: '12px' }}>บัญชีทั้งหมดในระบบ (เปิด/ปิดการแสดงผลได้):</p>
+              <p style={{ color: '#aaa', fontSize: '13px', marginTop: 0, marginBottom: '12px' }}>บัญชีทั้งหมดในระบบ (จัดลำดับ และเปิด/ปิดการแสดงผลได้):</p>
               
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {wallets.map((w, index) => (
@@ -750,13 +773,33 @@ function App() {
                         {w.custom && <span style={{ fontSize: '10px', backgroundColor: '#444', color: '#d4af37', padding: '2px 6px', borderRadius: '4px' }}>ลงทะเบียนแล้ว</span>}
                       </div>
                       <div style={{ fontSize: '12px', color: '#aaa', marginTop: '3px' }}>
-                        {w.accountName !== '-' ? `ชื่อ: ${w.accountName} ` : ''} {w.accountNumber !== '-' ? `| เลขบัญชี: ${w.accountNumber}` : ''}
+                        {w.accountName !== '-' && w.accountName ? `ชื่อ: ${w.accountName} ` : ''} {w.accountNumber !== '-' && w.accountNumber ? `| เลขบัญชี: ${w.accountNumber}` : ''}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      {/* ปุ่มเลื่อนขึ้น */}
+                      <button 
+                        type="button" 
+                        onClick={() => moveWallet(index, 'up')} 
+                        disabled={index === 0} 
+                        style={{ background: 'none', border: 'none', color: index === 0 ? '#555' : '#d4af37', cursor: index === 0 ? 'default' : 'pointer', fontSize: '13px', padding: '2px 4px' }}
+                        title="เลื่อนขึ้น"
+                      >▲</button>
+                      
+                      {/* ปุ่มเลื่อนลง */}
+                      <button 
+                        type="button" 
+                        onClick={() => moveWallet(index, 'down')} 
+                        disabled={index === wallets.length - 1} 
+                        style={{ background: 'none', border: 'none', color: index === wallets.length - 1 ? '#555' : '#d4af37', cursor: index === wallets.length - 1 ? 'default' : 'pointer', fontSize: '13px', padding: '2px 4px' }}
+                        title="เลื่อนลง"
+                      >▼</button>
+
                       {w.custom && (
-                        <button type="button" onClick={() => handleDeleteCustomWallet(w.id)} style={{ background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '13px' }}>ลบ</button>
+                        <button type="button" onClick={() => handleDeleteCustomWallet(w.id)} style={{ background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '13px', marginLeft: '4px' }}>ลบ</button>
                       )}
+                      
                       <input 
                         type="checkbox" 
                         checked={w.active} 
@@ -769,7 +812,7 @@ function App() {
                           newWallets[index].active = e.target.checked;
                           setWallets(newWallets);
                         }}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#d4af37' }}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#d4af37', marginLeft: '6px' }}
                       />
                     </div>
                   </div>
