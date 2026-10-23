@@ -162,17 +162,18 @@ function App() {
     }
   }, [user]);
 
-  const handleDragStart = (e, index) => {
+  // ฟังก์ชันจัดลำดับบัญชีด้วย Drag and Drop (ไม่ให้ชื่อฟังก์ชันชนกัน)
+  const handleWalletDragStart = (e, index) => {
     setDraggedWalletIndex(index);
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e) => {
+  const handleWalletDragOver = (e) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
   };
 
-  const handleDrop = (e, targetIndex) => {
+  const handleWalletDrop = (e, targetIndex) => {
     e.preventDefault();
     if (draggedWalletIndex === null || draggedWalletIndex === targetIndex) return;
     const newWallets = [...wallets];
@@ -324,6 +325,12 @@ function App() {
     reader.readAsDataURL(file);
   };
 
+  const handleDrop = (e) => {
+    e.preventDefault();
+    if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+  };
+  const handleDragOver = (e) => e.preventDefault();
+
   useEffect(() => {
     const handlePaste = (e) => {
       const items = e.clipboardData?.items;
@@ -390,8 +397,6 @@ function App() {
   };
 
   const handleImageUpload = (e) => { const f = e.target.files[0]; if (f) processFile(f); };
-  const handleDrop = (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); };
-  const handleDragOver = (e) => e.preventDefault();
   const removeSlip = () => { setFormData(prev => ({ ...prev, slip: null })); if (fileInputRef.current) fileInputRef.current.value = ""; };
 
   const handleSubmit = async (e) => {
@@ -627,7 +632,7 @@ function App() {
           รายรับ {currentMonthIncome.toLocaleString()} | รายจ่าย {currentMonthExpense.toLocaleString()} (เดือนนี้)
         </div>
 
-        {/* ส่วนแสดงบัญชี: 1 บัญชีอยู่ตรงกลาง, 2 บัญชีขึ้นไปจัดเรียวแถวละ 2 อย่างสมดุล */}
+        {/* ส่วนแสดงบัญชี: 1 บัญชีอยู่ตรงกลาง, 2 บัญชีขึ้นไปจัดเรียงแถวละ 2 อย่างสมดุล */}
         <div style={{ 
           display: 'grid', 
           gridTemplateColumns: activeWallets.length === 1 ? 'minmax(160px, 240px)' : 'repeat(2, minmax(0, 1fr))', 
@@ -787,9 +792,9 @@ function App() {
                   <div 
                     key={w.id} 
                     draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragOver={handleDragOver}
-                    onDrop={(e) => handleDrop(e, index)}
+                    onDragStart={(e) => handleWalletDragStart(e, index)}
+                    onDragOver={handleWalletDragOver}
+                    onDrop={(e) => handleWalletDrop(e, index)}
                     style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
