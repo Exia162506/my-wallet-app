@@ -610,12 +610,47 @@ function App() {
         </form>
       </div>
 
-      {/* Modal / Popup: ประวัติการใช้งาน */}
+      {/* Modal / Popup: ประวัติการใช้งาน (พร้อมปุ่ม X วงกลมสีแดงแบบ Sticky มุมขวาบน) */}
       {showHistoryModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
-            <button onClick={() => setShowHistoryModal(false)} style={{ position: 'absolute', top: '15px', right: '15px', background: 'none', border: 'none', color: '#aaa', fontSize: '20px', cursor: 'pointer' }}>✕</button>
-            <h2 style={{ marginTop: 0, color: '#d4af37' }}>ประวัติการใช้งาน</h2>
+            
+            {/* ส่วนหัว Sticky: หัวข้อ + ปุ่ม X วงกลมสีแดงมุมขวาบนที่จะเลื่อนตามลงมา */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              position: 'sticky', 
+              top: '-20px', 
+              backgroundColor: '#1e1e1e', 
+              zIndex: 10, 
+              padding: '12px 0 10px 0', 
+              borderBottom: '1px solid #333', 
+              marginBottom: '15px', 
+              marginTop: '-10px' 
+            }}>
+              <h2 style={{ margin: 0, color: '#d4af37' }}>ประวัติการใช้งาน</h2>
+              <button 
+                onClick={() => setShowHistoryModal(false)} 
+                style={{ 
+                  backgroundColor: '#ff4d4d', 
+                  color: '#fff', 
+                  border: 'none', 
+                  borderRadius: '50%', 
+                  width: '32px', 
+                  height: '32px', 
+                  fontSize: '16px', 
+                  fontWeight: 'bold', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.3)'
+                }}
+              >
+                ✕
+              </button>
+            </div>
             
             <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
               <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
