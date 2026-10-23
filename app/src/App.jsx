@@ -43,21 +43,17 @@ const CATEGORIES = {
 };
 
 const DEFAULT_WALLETS = [
-  { id: 'Cash', name: 'เงินสด', color: '#d4af37', active: true },
-  { id: 'KBank', name: 'กสิกรไทย (KBank)', color: '#138f2d', active: true },
-  { id: 'SCB', name: 'ไทยพาณิชย์ (SCB)', color: '#4e2a84', active: true },
-  { id: 'KTB', name: 'กรุงไทย (KTB)', color: '#00aeeef', active: true },
-  { id: 'BBL', name: 'กรุงเทพ (BBL)', color: '#1e4598', active: true },
-  { id: 'TrueMoney', name: 'TrueMoney', color: '#ff6600', active: true },
-  { id: 'Krungsri', name: 'กรุงศรี (Krungsri)', color: '#fec43b', active: false },
-  { id: 'TTB', name: 'ทีทีบี (ttb)', color: '#0050f0', active: false },
-  { id: 'GSB', name: 'ออมสิน (GSB)', color: '#eb008b', active: false },
-  { id: 'BAAC', name: 'ธ.ก.ส. (BAAC)', color: '#4b9b47', active: false },
-  { id: 'UOB', name: 'ยูโอบี (UOB)', color: '#003b7a', active: false },
-  { id: 'CIMB', name: 'ซีไอเอ็มบี (CIMB)', color: '#7a0010', active: false },
-  { id: 'Kept', name: 'Kept by krungsri', color: '#002d63', active: false },
-  { id: 'Make', name: 'MAKE by KBank', color: '#00c399', active: false },
-  { id: 'Dime', name: 'Dime!', color: '#00d65f', active: false }
+  { id: 'Cash', name: 'เงินสด', color: '#d4af37', active: true, custom: false },
+  { id: 'KBank', name: 'กสิกรไทย (KBank)', color: '#138f2d', active: true, custom: false },
+  { id: 'SCB', name: 'ไทยพาณิชย์ (SCB)', color: '#4e2a84', active: true, custom: false },
+  { id: 'KTB', name: 'กรุงไทย (KTB)', color: '#00aeeef', active: true, custom: false },
+  { id: 'BBL', name: 'กรุงเทพ (BBL)', color: '#1e4598', active: true, custom: false },
+  { id: 'TrueMoney', name: 'TrueMoney', color: '#ff6600', active: true, custom: false },
+  { id: 'Krungsri', name: 'กรุงศรี (Krungsri)', color: '#fec43b', active: false, custom: false },
+  { id: 'TTB', name: 'ทีทีบี (ttb)', color: '#0050f0', active: false, custom: false },
+  { id: 'GSB', name: 'ออมสิน (GSB)', color: '#eb008b', active: false, custom: false },
+  { id: 'BAAC', name: 'ธ.ก.ส. (BAAC)', color: '#4b9b47', active: false, custom: false },
+  { id: 'UOB', name: 'ยูโอบี (UOB)', color: '#003b7a', active: false, custom: false }
 ];
 
 const getWeekRange = (dateString) => {
@@ -87,13 +83,15 @@ function App() {
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
   const [wallets, setWallets] = useState(() => {
-    const saved = localStorage.getItem('my_wallet_settings_v1');
+    const saved = localStorage.getItem('my_wallet_settings_v2');
     if (saved) return JSON.parse(saved);
     return DEFAULT_WALLETS;
   });
 
+  const [newWalletName, setNewWalletName] = useState('');
+
   useEffect(() => {
-    localStorage.setItem('my_wallet_settings_v1', JSON.stringify(wallets));
+    localStorage.setItem('my_wallet_settings_v2', JSON.stringify(wallets));
   }, [wallets]);
 
   const activeWallets = wallets.filter(w => w.active);
@@ -162,22 +160,41 @@ function App() {
     }
   }, [user]);
 
-  // ฟังก์ชันสแกน OCR (อ่านตัวอักษรและตัวเลขบนสลิป)
+  const handleAddCustomWallet = (e) => {
+    e.preventDefault();
+    if (!newWalletName.trim()) return;
+
+    const colors = ['#00acc1', '#ab47bc', '#ef5350', '#ffa726', '#26a69a', '#7e57c2'];
+    const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+    const newWallet = {
+      id: 'custom_' + Date.now(),
+      name: newWalletName.trim(),
+      color: randomColor,
+      active: true,
+      custom: true
+    };
+
+    setWallets([...wallets, newWallet]);
+    setNewWalletName('');
+  };
+
+  const handleDeleteCustomWallet = (id) => {
+    if (window.confirm("คุณต้องการลบบัญชีนี้ใช่หรือไม่?")) {
+      setWallets(wallets.filter(w => w.id !== id));
+    }
+  };
+
   const scanSlipOCR = async (imageSrc) => {
-    setIsScanning(true);
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'tha+eng');
-      console.log("OCR Extracted Text:", text); // ตรวจสอบคำที่สแกนได้ใน Console
-
-      // ค้นหาจำนวนเงิน (รูปแบบ xx.xx หรือ x,xxx.xx)
       const amountRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}/g;
       const amounts = text.match(amountRegex);
       let detectedAmount = '';
       if (amounts && amounts.length > 0) {
-        detectedAmount = amounts[0].replace(/,/g, ''); 
+        detectedAmount = amounts[amounts.length - 1].replace(/,/g, ''); 
       }
 
-      // ค้นหาชื่อธนาคารจากคีย์เวิร์ด
       const lowerText = text.toLowerCase();
       let detectedWallet = null;
       if (lowerText.includes('kbank') || text.includes('กสิกร')) detectedWallet = 'กสิกรไทย (KBank)';
@@ -193,16 +210,16 @@ function App() {
         wallet: detectedWallet && activeWallets.map(w=>w.name).includes(detectedWallet) ? detectedWallet : prev.wallet,
         fromWallet: detectedWallet && prev.type === 'Transfer' && activeWallets.map(w=>w.name).includes(detectedWallet) ? detectedWallet : prev.fromWallet
       }));
-
     } catch (error) {
-      console.error("OCR Scan Failed:", error);
+      console.error("OCR Error:", error);
+    } finally {
+      setIsScanning(false);
     }
-    setIsScanning(false);
   };
 
-  // ฟังก์ชันรับรูปภาพและแปลงลง Canvas (ประกาศเพียงครั้งเดียว)
   const processFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return;
+    setIsScanning(true);
     const reader = new FileReader();
     reader.onload = (event) => {
       const img = new Image();
@@ -218,8 +235,6 @@ function App() {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         setFormData(prev => ({ ...prev, slip: dataUrl }));
         setSlipError(false);
-        
-        // เรียกใช้งาน OCR หลังจากอัปโหลดรูปเสร็จ
         scanSlipOCR(dataUrl);
       };
       img.src = event.target.result;
@@ -242,84 +257,38 @@ function App() {
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
-  const handleGoogleLogin = async () => {
-    try {
-      await signInWithPopup(auth, googleProvider);
-    } catch (error) {
-      alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบด้วย Google");
-    }
-  };
-
-  const handleFacebookLogin = async () => {
-    try {
-      await signInWithPopup(auth, facebookProvider);
-    } catch (error) {
-      alert("เกิดข้อผิดพลาด: กรุณาตรวจสอบการตั้งค่า Facebook Login ใน Firebase Console");
-    }
-  };
-
+  const handleGoogleLogin = async () => { try { await signInWithPopup(auth, googleProvider); } catch (e) { alert("Google Login Error"); } };
+  const handleFacebookLogin = async () => { try { await signInWithPopup(auth, facebookProvider); } catch (e) { alert("Facebook Login Error"); } };
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
-    try {
-      await signInWithEmailAndPassword(auth, authEmail, authPassword);
-    } catch (error) {
-      alert("❌ เข้าสู่ระบบไม่สำเร็จ: อีเมลหรือรหัสผ่านไม่ถูกต้อง");
-    }
+    try { await signInWithEmailAndPassword(auth, authEmail, authPassword); } catch (e) { alert("❌ เข้าสู่ระบบไม่สำเร็จ"); }
   };
-
   const handleRegisterSubmit = (e) => {
     e.preventDefault();
-    if (authPassword !== confirmPassword) {
-      alert("❌ รหัสผ่านทั้งสองครั้งไม่ตรงกัน!");
-      return;
-    }
-    if (authPassword.length < 6) {
-      alert("❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร");
-      return;
-    }
-
+    if (authPassword !== confirmPassword) { alert("❌ รหัสผ่านไม่ตรงกัน"); return; }
+    if (authPassword.length < 6) { alert("❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"); return; }
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     setGeneratedOtp(otp);
     setTempRegData({ email: authEmail, password: authPassword });
-    
-    alert(`📱 ระบบได้ส่งรหัส OTP ไปยังอีเมลของคุณแล้ว\n\n🔑 รหัส OTP ทดสอบของคุณคือ: [ ${otp} ]`);
+    alert(`📱 OTP ทดสอบของคุณคือ: [ ${otp} ]`);
     setAuthMode('verify-otp');
   };
-
   const handleVerifyOtpSubmit = async (e) => {
     e.preventDefault();
-    if (inputOtp !== generatedOtp) {
-      alert("❌ รหัส OTP ไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง");
-      return;
-    }
-
+    if (inputOtp !== generatedOtp) { alert("❌ OTP ไม่ถูกต้อง"); return; }
     try {
       await createUserWithEmailAndPassword(auth, tempRegData.email, tempRegData.password);
-      alert("✅ ยืนยัน OTP และสร้างบัญชีสำเร็จ!");
+      alert("✅ สมัครสมาชิกสำเร็จ!");
       setAuthMode('login');
-      setInputOtp('');
-      setAuthEmail('');
-      setAuthPassword('');
-      setConfirmPassword('');
-    } catch (error) {
-      alert("❌ เกิดข้อผิดพลาด: " + error.message);
-      setAuthMode('register');
-    }
+    } catch (error) { alert("❌ " + error.message); }
   };
-
   const handleForgotPassword = async (e) => {
     e.preventDefault();
-    if (!authEmail) {
-      alert("กรุณากรอกอีเมลของคุณก่อนครับ");
-      return;
-    }
     try {
       await sendPasswordResetEmail(auth, authEmail);
-      alert(`✅ ระบบได้ส่งลิงก์รีเซ็ตรหัสผ่านไปที่อีเมล ${authEmail} เรียบร้อยแล้ว กรุณาตรวจสอบกล่องข้อความของคุณ`);
+      alert(`✅ ส่งลิงก์รีเซ็ตรหัสผ่านไปที่ ${authEmail} แล้ว`);
       setAuthMode('login');
-    } catch (error) {
-      alert("❌ เกิดข้อผิดพลาด: ไม่พบอีเมลนี้ในระบบ");
-    }
+    } catch (e) { alert("❌ ไม่พบอีเมลนี้ในระบบ"); }
   };
 
   const handleChange = (e) => {
@@ -333,36 +302,15 @@ function App() {
     }
   };
 
-  const handleImageUpload = (e) => {
-    const file = e.target.files[0];
-    if (file) processFile(file);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleDragOver = (e) => {
-    e.preventDefault();
-  };
-
-  const removeSlip = () => {
-    setFormData(prev => ({ ...prev, slip: null }));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
+  const handleImageUpload = (e) => { const f = e.target.files[0]; if (f) processFile(f); };
+  const handleDrop = (e) => { e.preventDefault(); if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]); };
+  const handleDragOver = (e) => e.preventDefault();
+  const removeSlip = () => { setFormData(prev => ({ ...prev, slip: null })); if (fileInputRef.current) fileInputRef.current.value = ""; };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.amount || !user) return;
-    
-    if (!formData.slip) {
-      setSlipError(true);
-      alert("⚠️ กรุณาแนบสลิปหรือหลักฐานการทำรายการก่อนบันทึกครับ");
-      return;
-    }
+    if (!formData.slip) { setSlipError(true); alert("⚠️ กรุณาแนบสลิปก่อนบันทึก"); return; }
     
     const newTransaction = {
       userId: user.uid, 
@@ -384,39 +332,25 @@ function App() {
       if (fileInputRef.current) fileInputRef.current.value = "";
       setSlipError(false);
       alert("✅ บันทึกรายการสำเร็จ!");
-    } catch (error) {
-      alert("เกิดข้อผิดพลาดในการบันทึกข้อมูล");
-    }
+    } catch (error) { alert("เกิดข้อผิดพลาด"); }
   };
 
   const handleDelete = async (id) => {
-    if(window.confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) {
-      await deleteDoc(doc(db, "transactions", id)); 
-    }
+    if (window.confirm('คุณต้องการลบรายการนี้ใช่หรือไม่?')) await deleteDoc(doc(db, "transactions", id));
   };
 
   const toggleGroup = (groupKey) => {
-    setExpandedGroups(prev => ({
-      ...prev, [groupKey]: prev[groupKey] === undefined ? false : !prev[groupKey] 
-    }));
+    setExpandedGroups(prev => ({ ...prev, [groupKey]: prev[groupKey] === undefined ? false : !prev[groupKey] }));
   };
 
-  const transactionsToDisplay = viewMode === 'day' 
-    ? transactions.filter(t => t.Date === selectedDay)
-    : transactions;
+  const transactionsToDisplay = viewMode === 'day' ? transactions.filter(t => t.Date === selectedDay) : transactions;
 
   const groupedTransactions = transactionsToDisplay.reduce((acc, curr) => {
-    let key = '';
-    if (viewMode === 'day') key = getDayName(curr.Date);
-    else if (viewMode === 'week') key = getWeekRange(curr.Date);
-    else if (viewMode === 'month') key = getMonthName(curr.Date);
-
+    let key = viewMode === 'day' ? getDayName(curr.Date) : viewMode === 'week' ? getWeekRange(curr.Date) : getMonthName(curr.Date);
     if (!acc[key]) acc[key] = { items: [], totalIncome: 0, totalExpense: 0, sortDate: curr.Date };
     acc[key].items.push(curr);
-    
     if (curr.Type === 'Income') acc[key].totalIncome += curr.Amount;
     else if (curr.Type === 'Expense') acc[key].totalExpense += curr.Amount;
-    
     return acc;
   }, {});
 
@@ -432,14 +366,12 @@ function App() {
       const w = t.Wallet || 'เงินสด';
       if (walletBalances[w] === undefined) walletBalances[w] = 0;
       walletBalances[w] += amt;
-    } 
-    else if (t.Type === 'Expense') {
+    } else if (t.Type === 'Expense') {
       totalBalance -= amt;
       const w = t.Wallet || 'เงินสด';
       if (walletBalances[w] === undefined) walletBalances[w] = 0;
       walletBalances[w] -= amt;
-    } 
-    else if (t.Type === 'Transfer') {
+    } else if (t.Type === 'Transfer') {
       const fW = t.FromWallet || 'เงินสด';
       const tW = t.ToWallet || 'กสิกรไทย (KBank)';
       if (walletBalances[fW] === undefined) walletBalances[fW] = 0;
@@ -472,9 +404,7 @@ function App() {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '90vh', padding: '20px' }}>
         <h1 className="text-gold" style={{ fontSize: '42px', marginBottom: '5px' }}>My Wallet</h1>
         <p style={{ color: '#aaa', marginBottom: '25px' }}>ระบบบัญชีรายรับ-รายจ่ายส่วนบุคคลบน Cloud</p>
-        
         <div className="card" style={{ width: '100%', maxWidth: '380px', padding: '25px' }}>
-          
           {authMode === 'login' && (
             <>
               <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>เข้าสู่ระบบ</h3>
@@ -492,7 +422,6 @@ function App() {
               </div>
             </>
           )}
-
           {authMode === 'register' && (
             <>
               <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>สร้างบัญชีใหม่</h3>
@@ -508,13 +437,10 @@ function App() {
               </div>
             </>
           )}
-
           {authMode === 'verify-otp' && (
             <>
               <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>ยืนยันรหัส OTP</h3>
-              <p style={{ fontSize: '13px', color: '#aaa', textAlign: 'center', marginBottom: '15px' }}>
-                กรุณากรอกรหัส OTP 6 หลักที่ส่งไปยังอีเมล <strong>{authEmail}</strong>
-              </p>
+              <p style={{ fontSize: '13px', color: '#aaa', textAlign: 'center', marginBottom: '15px' }}>กรอกรหัส OTP 6 หลักที่ส่งไปยังอีเมล <strong>{authEmail}</strong></p>
               <form onSubmit={handleVerifyOtpSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <input type="text" placeholder="กรอกรหัส OTP 6 หลัก" maxLength="6" value={inputOtp} onChange={(e) => setInputOtp(e.target.value)} style={{ textAlign: 'center', fontSize: '20px', letterSpacing: '4px' }} required />
                 <button type="submit" style={{ backgroundColor: '#4CAF50', color: '#fff', fontWeight: 'bold', marginTop: '5px' }}>ยืนยันและสมัครสมาชิก</button>
@@ -524,13 +450,10 @@ function App() {
               </div>
             </>
           )}
-
           {authMode === 'forgot' && (
             <>
               <h3 style={{ textAlign: 'center', marginTop: 0, color: '#d4af37' }}>กู้คืนรหัสผ่าน</h3>
-              <p style={{ fontSize: '13px', color: '#aaa', textAlign: 'center', marginBottom: '15px' }}>
-                กรอกอีเมลของคุณเพื่อรับลิงก์ / OTP สำหรับตั้งรหัสผ่านใหม่
-              </p>
+              <p style={{ fontSize: '13px', color: '#aaa', textAlign: 'center', marginBottom: '15px' }}>กรอกอีเมลของคุณเพื่อรับลิงก์รีเซ็ตรหัสผ่าน</p>
               <form onSubmit={handleForgotPassword} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <input type="email" placeholder="อีเมลที่ลงทะเบียนไว้" value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} required />
                 <button type="submit" style={{ backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', marginTop: '5px' }}>ส่งรหัสกู้คืน</button>
@@ -540,7 +463,6 @@ function App() {
               </div>
             </>
           )}
-
           {authMode !== 'verify-otp' && authMode !== 'forgot' && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: '#666' }}>
@@ -548,21 +470,16 @@ function App() {
                 <span style={{ padding: '0 10px', fontSize: '12px' }}>หรือเชื่อมต่อผ่าน</span>
                 <div style={{ flex: 1, height: '1px', backgroundColor: '#333' }}></div>
               </div>
-
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 <button onClick={handleGoogleLogin} style={{ padding: '12px', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#fff', color: '#000', border: 'none', fontWeight: '500' }}>
-                  <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="google" style={{ width: '20px' }} />
-                  ดำเนินการต่อด้วย Google
+                  <img src="https://cdn-icons-png.flaticon.com/512/300/300221.png" alt="google" style={{ width: '20px' }} /> ดำเนินการต่อด้วย Google
                 </button>
-
                 <button onClick={handleFacebookLogin} style={{ padding: '12px', fontSize: '14px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', cursor: 'pointer', backgroundColor: '#1877F2', color: '#fff', border: 'none', fontWeight: '500' }}>
-                  <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="facebook" style={{ width: '20px', filter: 'brightness(0) invert(1)' }} />
-                  ดำเนินการต่อด้วย Facebook
+                  <img src="https://cdn-icons-png.flaticon.com/512/733/733547.png" alt="facebook" style={{ width: '20px', filter: 'brightness(0) invert(1)' }} /> ดำเนินการต่อด้วย Facebook
                 </button>
               </div>
             </>
           )}
-
         </div>
       </div>
     );
@@ -588,54 +505,19 @@ function App() {
         `}
       </style>
 
-      {/* Header พร้อมเมนูรูปโปรไฟล์ */}
+      {/* Header */}
       <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', backgroundColor: '#1e1e1e', padding: '10px 20px', borderRadius: '12px' }}>
         <h2 className="text-gold" style={{ margin: 0 }}>My Wallet</h2>
-        
         <div style={{ display: 'flex', alignItems: 'center', position: 'relative' }}>
           <div onClick={() => setShowProfileMenu(!showProfileMenu)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
             <img src={user.photoURL || "https://cdn-icons-png.flaticon.com/512/149/149071.png"} alt="profile" style={{ width: '38px', height: '38px', borderRadius: '50%', border: '2px solid #d4af37', objectFit: 'cover' }} referrerPolicy="no-referrer" />
           </div>
-
           {showProfileMenu && (
-            <div style={{
-              position: 'absolute', top: '50px', right: '0',
-              backgroundColor: '#2a2a2a', border: '1px solid #444',
-              borderRadius: '8px', width: '200px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
-              zIndex: 1000, overflow: 'hidden'
-            }}>
-              <div 
-                onClick={() => { setShowHistoryModal(true); setShowProfileMenu(false); }} 
-                style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-              >
-                📊 ประวัติการใช้งาน
-              </div>
-              <div 
-                onClick={() => { setShowExportModal(true); setShowProfileMenu(false); }} 
-                style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-              >
-                📄 สรุป PDF
-              </div>
-              <div 
-                onClick={() => { setShowSettingsModal(true); setShowProfileMenu(false); }} 
-                style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-              >
-                ⚙️ ตั้งค่า
-              </div>
-              <div 
-                onClick={() => { setShowLogoutModal(true); setShowProfileMenu(false); }} 
-                style={{ padding: '12px 15px', color: '#ff4d4d', cursor: 'pointer', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}
-                onMouseEnter={(e) => e.target.style.backgroundColor = '#333'}
-                onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-              >
-                🚪 ออกจากระบบ
-              </div>
+            <div style={{ position: 'absolute', top: '50px', right: '0', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '8px', width: '200px', boxShadow: '0 4px 12px rgba(0,0,0,0.5)', zIndex: 1000, overflow: 'hidden' }}>
+              <div onClick={() => { setShowHistoryModal(true); setShowProfileMenu(false); }} style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px' }}>📊 ประวัติการใช้งาน</div>
+              <div onClick={() => { setShowExportModal(true); setShowProfileMenu(false); }} style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px' }}>📄 สรุป PDF</div>
+              <div onClick={() => { setShowSettingsModal(true); setShowProfileMenu(false); }} style={{ padding: '12px 15px', color: '#fff', cursor: 'pointer', borderBottom: '1px solid #333', fontSize: '14px' }}>⚙️ ตั้งค่า</div>
+              <div onClick={() => { setShowLogoutModal(true); setShowProfileMenu(false); }} style={{ padding: '12px 15px', color: '#ff4d4d', cursor: 'pointer', fontSize: '14px' }}>🚪 ออกจากระบบ</div>
             </div>
           )}
         </div>
@@ -726,7 +608,6 @@ function App() {
                 position: 'relative'
               }}
             >
-              {/* Overlay สถานะกำลังสแกน */}
               {isScanning && (
                 <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.8)', borderRadius: '10px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', zIndex: 5 }}>
                   <div className="spinner" style={{ width: '30px', height: '30px', border: '3px solid rgba(212,175,55,0.3)', borderTopColor: '#d4af37', borderRadius: '50%', animation: 'spin 1s linear infinite' }}></div>
@@ -735,13 +616,7 @@ function App() {
                 </div>
               )}
 
-              <input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageUpload} 
-                ref={fileInputRef} 
-                style={{ display: 'none' }} 
-              />
+              <input type="file" accept="image/*" onChange={handleImageUpload} ref={fileInputRef} style={{ display: 'none' }} />
               
               {formData.slip ? (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
@@ -759,29 +634,57 @@ function App() {
           </div>
 
           <button type="submit" style={{ marginTop: '15px', opacity: isScanning ? 0.5 : 1 }} disabled={isScanning}>
-            {isScanning ? 'กำลังประมวลผล...' : 'บันทึกรายการ'}
+            {isScanning ? 'กำลังประมวลผลสลิป...' : 'บันทึกรายการ'}
           </button>
         </form>
       </div>
 
-      {/* Modal: ตั้งค่า */}
+      {/* Modal: ตั้งค่าบัญชีธนาคาร (แก้ไขฟอร์มเพิ่มบัญชีให้แสดงผลถูกต้อง) */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
               <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ตั้งค่าบัญชีธนาคาร</h2>
-              <button 
-                onClick={() => setShowSettingsModal(false)} 
-                style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}
-              >✕</button>
+              <button onClick={() => setShowSettingsModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}>✕</button>
             </div>
+            
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-              <p style={{ color: '#aaa', fontSize: '14px', marginTop: 0, marginBottom: '20px' }}>เลือกเปิด/ปิด บัญชีธนาคารหรือกระเป๋าเงินที่คุณต้องการให้แสดงในแอป</p>
+              {/* ฟอร์มเพิ่มบัญชีใหม่ (แก้ไขสไตล์ Input ให้เห็นชัดเจนและใช้งานได้ปกติ) */}
+              <form onSubmit={handleAddCustomWallet} style={{ display: 'flex', gap: '8px', marginBottom: '20px', alignItems: 'center' }}>
+                <input 
+                  type="text" 
+                  placeholder="พิมพ์ชื่อบัญชีหรือธนาคารใหม่..." 
+                  value={newWalletName} 
+                  onChange={(e) => setNewWalletName(e.target.value)}
+                  style={{ 
+                    flex: 1, 
+                    marginBottom: 0, 
+                    padding: '10px', 
+                    backgroundColor: '#2a2a2a', 
+                    border: '1px solid #444', 
+                    color: '#fff', 
+                    borderRadius: '8px', 
+                    minWidth: 0,
+                    outline: 'none',
+                    fontSize: '14px'
+                  }}
+                />
+                <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: 'pointer', flexShrink: 0 }}>+ เพิ่ม</button>
+              </form>
+
+              <p style={{ color: '#aaa', fontSize: '14px', marginTop: 0, marginBottom: '15px' }}>เปิด/ปิด บัญชีที่ต้องการแสดง หรือลบบัญชีที่สร้างขึ้นเอง</p>
+              
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {wallets.map((w, index) => (
-                  <div key={w.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 15px', backgroundColor: '#2a2a2a', borderRadius: '8px', borderLeft: `4px solid ${w.color}` }}>
-                    <span style={{ color: '#fff', fontSize: '15px' }}>{w.name}</span>
-                    <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                  <div key={w.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 15px', backgroundColor: '#2a2a2a', borderRadius: '8px', borderLeft: `4px solid ${w.color}` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ color: '#fff', fontSize: '15px' }}>{w.name}</span>
+                      {w.custom && <span style={{ fontSize: '10px', backgroundColor: '#444', color: '#d4af37', padding: '2px 6px', borderRadius: '4px' }}>สร้างเอง</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      {w.custom && (
+                        <button type="button" onClick={() => handleDeleteCustomWallet(w.id)} style={{ background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '13px' }}>ลบ</button>
+                      )}
                       <input 
                         type="checkbox" 
                         checked={w.active} 
@@ -796,7 +699,7 @@ function App() {
                         }}
                         style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#d4af37' }}
                       />
-                    </label>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -811,10 +714,7 @@ function App() {
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '650px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
               <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ประวัติการใช้งาน</h2>
-              <button 
-                onClick={() => setShowHistoryModal(false)} 
-                style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}
-              >✕</button>
+              <button onClick={() => setShowHistoryModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}>✕</button>
             </div>
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
@@ -900,12 +800,8 @@ function App() {
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '600px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
               <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ออกรายงาน PDF</h2>
-              <button 
-                onClick={() => setShowExportModal(false)} 
-                style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}
-              >✕</button>
+              <button onClick={() => setShowExportModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: '#aaa', fontSize: '24px', cursor: 'pointer', padding: 0, lineHeight: '1' }}>✕</button>
             </div>
-            
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <div style={{ flex: 1 }}>
@@ -933,7 +829,7 @@ function App() {
         </div>
       )}
 
-      {/* ส่วนที่จะถูกพิมพ์ลง PDF */}
+      {/* ส่วนพิมพ์ PDF */}
       <div className="print-only" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
         <h1 style={{ textAlign: 'center', margin: '0 0 10px 0', fontSize: '24px' }}>สรุปรายการบัญชี My Wallet</h1>
         <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>ตั้งแต่วันที่ {exportStart ? new Date(exportStart).toLocaleDateString('th-TH') : '-'} ถึง {exportEnd ? new Date(exportEnd).toLocaleDateString('th-TH') : '-'}</p>
@@ -967,9 +863,7 @@ function App() {
                   </small>
                 </td>
                 <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
-                  {item.Slip ? (
-                    <img src={item.Slip} alt="slip" style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #999' }} />
-                  ) : '-'}
+                  {item.Slip ? <img src={item.Slip} alt="slip" style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #999' }} /> : '-'}
                 </td>
                 <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', verticalAlign: 'middle', color: item.Type === 'Income' ? 'green' : item.Type === 'Expense' ? 'red' : 'blue' }}>
                   {item.Type === 'Expense' ? '-' : ''}{Number(item.Amount).toLocaleString()}
