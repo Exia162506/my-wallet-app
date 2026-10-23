@@ -34,10 +34,20 @@ const googleProvider = new GoogleAuthProvider();
 const facebookProvider = new FacebookAuthProvider();
 
 const CATEGORIES = {
-  Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'ลงทุน', 'บิล/ค่าน้ำค่าไฟ', 'โอนไปบัญชีอื่น', 'อื่นๆ'],
+  Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'ลงทุน', 'บิล/ค่าน้ำค่าไฟ', 'อื่นๆ'],
   Income: ['เงินเดือน', 'รายได้เสริม', 'โบนัส', 'เงินคืน / ปันผล', 'อื่นๆ (รายรับ)'],
-  Transfer: ['โอนบัญชีอื่น', 'เงินออม', 'อื่นๆ (โอน)'] 
+  Transfer: ['โอนย้ายเงินภายใน'] // เปลี่ยนเป็นโอนภายใน
 };
+
+// รายชื่อบัญชีธนาคาร/กระเป๋าเงินที่มีให้เลือก
+const WALLETS = [
+  { id: 'Cash', name: 'เงินสด', color: '#d4af37' },
+  { id: 'KBank', name: 'กสิกรไทย (KBank)', color: '#138f2d' },
+  { id: 'SCB', name: 'ไทยพาณิชย์ (SCB)', color: '#4e2a84' },
+  { id: 'KTB', name: 'กรุงไทย (KTB)', color: '#00aeeef' },
+  { id: 'BBL', name: 'กรุงเทพ (BBL)', color: '#1e4598' },
+  { id: 'TrueMoney', name: 'TrueMoney', color: '#ff6600' }
+];
 
 const getWeekRange = (dateString) => {
   const curr = new Date(dateString);
@@ -65,7 +75,7 @@ function App() {
   const [expandedGroups, setExpandedGroups] = useState({}); 
   const [viewSlipImage, setViewSlipImage] = useState(null);
 
-  // สถานะหน้า Auth (login, register, forgot, verify-otp)
+  // สถานะหน้า Auth 
   const [authMode, setAuthMode] = useState('login'); 
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -76,28 +86,28 @@ function App() {
   const [inputOtp, setInputOtp] = useState('');
   const [tempRegData, setTempRegData] = useState(null);
 
-  // สถานะเปิด-ปิดเมนูโปรไฟล์ และ Popup ต่างๆ
+  // สถานะ Popup
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
 
-  // ระบบเช็กข้อผิดพลาดของการไม่อัปโหลดสลิป
   const [slipError, setSlipError] = useState(false);
-
-  // ระบบ Export PDF
   const [exportStart, setExportStart] = useState('');
   const [exportEnd, setExportEnd] = useState('');
-
   const fileInputRef = useRef(null);
 
+  // ฟอร์มบันทึกรายการ เพิ่มการเลือกระเป๋าเงิน
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     type: 'Expense',
     category: CATEGORIES['Expense'][0],
     amount: '',
     note: '',
-    slip: null 
+    slip: null,
+    wallet: WALLETS[1].name, // เริ่มต้นด้วย KBank
+    fromWallet: WALLETS[1].name,
+    toWallet: WALLETS[2].name
   });
 
   useEffect(() => {
@@ -120,7 +130,6 @@ function App() {
     }
   }, [user]);
 
-  // ฟังก์ชันประมวลผลไฟล์รูปภาพสลิป
   const processFile = (file) => {
     if (!file || !file.type.startsWith('image/')) return;
     const reader = new FileReader();
@@ -279,6 +288,7 @@ function App() {
       return;
     }
     
+    // โครงสร้างข้อมูลธุรกรรมแบบใหม่ รองรับหลายบัญชี
     const newTransaction = {
       userId: user.uid, 
       Date: formData.date,
@@ -287,6 +297,9 @@ function App() {
       Amount: Number(formData.amount),
       Note: formData.note,
       Slip: formData.slip,
+      Wallet: formData.type === 'Transfer' ? null : formData.wallet,
+      FromWallet: formData.type === 'Transfer' ? formData.fromWallet : null,
+      ToWallet: formData.type === 'Transfer' ? formData.toWallet : null,
       createdAt: new Date().toISOString()
     };
     
@@ -334,11 +347,32 @@ function App() {
 
   const sortedGroups = Object.keys(groupedTransactions).sort((a, b) => new Date(groupedTransactions[b].sortDate) - new Date(groupedTransactions[a].sortDate));
 
-  const totalBalance = transactions.reduce((acc, curr) => {
-    if (curr.Type === 'Income') return acc + Number(curr.Amount);
-    if (curr.Type === 'Expense') return acc - Number(curr.Amount);
-    return acc;
-  }, 0);
+  // คำนวณยอดเงินรวมและยอดคงเหลือรายบัญชี
+  const walletBalances = {};
+  WALLETS.forEach(w => walletBalances[w.name] = 0);
+  
+  let totalBalance = 0;
+
+  transactions.forEach(t => {
+    const amt = Number(t.Amount);
+    
+    if (t.Type === 'Income') {
+      totalBalance += amt;
+      const w = t.Wallet || 'เงินสด'; // ถ้าไม่มีข้อมูลเก่า ให้ถือเป็นเงินสด
+      if (walletBalances[w] !== undefined) walletBalances[w] += amt;
+    } 
+    else if (t.Type === 'Expense') {
+      totalBalance -= amt;
+      const w = t.Wallet || 'เงินสด';
+      if (walletBalances[w] !== undefined) walletBalances[w] -= amt;
+    } 
+    else if (t.Type === 'Transfer') {
+      const fW = t.FromWallet || 'เงินสด';
+      const tW = t.ToWallet || 'KBank';
+      if (walletBalances[fW] !== undefined) walletBalances[fW] -= amt;
+      if (walletBalances[tW] !== undefined) walletBalances[tW] += amt;
+    }
+  });
 
   const currentMonth = new Date().toISOString().slice(0, 7); 
   const monthlyTransactions = transactions.filter(t => t.Date.startsWith(currentMonth));
@@ -465,6 +499,9 @@ function App() {
         {`
           @media screen {
             .print-only { display: none !important; }
+            /* ซ่อน Scrollbar ของการ์ดกระเป๋าเงินเพื่อความสวยงาม */
+            .wallet-scroll::-webkit-scrollbar { display: none; }
+            .wallet-scroll { -ms-overflow-style: none; scrollbar-width: none; }
           }
           @media print {
             .no-print { display: none !important; }
@@ -530,21 +567,24 @@ function App() {
         </div>
       </div>
       
-      <div className="card no-print" style={{ textAlign: 'center' }}>
-        <p style={{ margin: 0, color: '#aaa' }}>ยอดเงินคงเหลือรวม</p>
+      {/* ส่วนแสดงยอดเงินรวมและยอดแยกกระเป๋า (Wallet Cards) แบบแอปธนาคาร */}
+      <div className="card no-print" style={{ textAlign: 'center', padding: '20px 15px' }}>
+        <p style={{ margin: 0, color: '#aaa' }}>ยอดเงินคงเหลือรวมทั้งหมด</p>
         <h1 style={{ margin: '10px 0', fontSize: '36px', color: '#d4af37' }}>฿{totalBalance.toLocaleString()}</h1>
-        <div style={{ fontSize: '12px', color: '#888', marginBottom: '10px' }}>
-          สรุปยอดเดือนปัจจุบัน ({new Date().toLocaleDateString('th-TH', { month: 'long', year: 'numeric' })})
+        <div style={{ fontSize: '12px', color: '#888', marginBottom: '15px' }}>
+          รายรับ {currentMonthIncome.toLocaleString()} | รายจ่าย {currentMonthExpense.toLocaleString()} (เดือนนี้)
         </div>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '15px', marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #333' }}>
-          <div style={{ flex: 1, maxWidth: '160px', padding: '10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '8px', textAlign: 'center' }}>
-            <p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>รายรับรวม</p>
-            <p className="income-text" style={{ margin: '5px 0 0 0', fontSize: '18px' }}>+฿{currentMonthIncome.toLocaleString()}</p>
-          </div>
-          <div style={{ flex: 1, maxWidth: '160px', padding: '10px', backgroundColor: '#2a2a2a', border: '1px solid #444', borderRadius: '8px', textAlign: 'center' }}>
-            <p style={{ margin: 0, color: '#aaa', fontSize: '14px' }}>ใช้ไปแล้ว</p>
-            <p className="expense-text" style={{ margin: '5px 0 0 0', fontSize: '18px' }}>-฿{currentMonthExpense.toLocaleString()}</p>
-          </div>
+
+        {/* แถบเลื่อนแสดงบัญชีย่อย */}
+        <div className="wallet-scroll" style={{ display: 'flex', overflowX: 'auto', gap: '12px', paddingBottom: '10px', marginTop: '15px', snapType: 'x mandatory' }}>
+          {WALLETS.map(w => (
+            <div key={w.id} style={{ minWidth: '140px', backgroundColor: '#2a2a2a', borderLeft: `4px solid ${w.color}`, padding: '12px 15px', borderRadius: '8px', textAlign: 'left', flexShrink: 0, scrollSnapAlign: 'start', boxShadow: '0 2px 5px rgba(0,0,0,0.2)' }}>
+              <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '5px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</div>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', color: walletBalances[w.name] < 0 ? '#ff4d4d' : '#fff' }}>
+                ฿{walletBalances[w.name].toLocaleString()}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -556,12 +596,38 @@ function App() {
             <select name="type" value={formData.type} onChange={handleChange}>
               <option value="Expense">รายจ่าย</option>
               <option value="Income">รายรับ</option>
-              <option value="Transfer">โอนเงิน (ยอดไม่ลด)</option>
+              <option value="Transfer">โอนภายในบัญชี</option>
             </select>
             <select name="category" value={formData.category} onChange={handleChange}>
               {CATEGORIES[formData.type].map(cat => <option key={cat} value={cat}>{cat}</option>)}
             </select>
           </div>
+
+          {/* ส่วนของการเลือกบัญชี เปลี่ยนไปตามประเภทรายการ */}
+          {formData.type === 'Transfer' ? (
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '15px', backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '8px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>โอนจาก (From)</div>
+                <select name="fromWallet" value={formData.fromWallet} onChange={handleChange} style={{ width: '100%', marginBottom: 0 }}>
+                  {WALLETS.map(w => <option key={`from-${w.id}`} value={w.name}>{w.name}</option>)}
+                </select>
+              </div>
+              <div style={{ color: '#888', marginTop: '15px' }}>➔</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: '12px', color: '#aaa', marginBottom: '4px' }}>ไปยัง (To)</div>
+                <select name="toWallet" value={formData.toWallet} onChange={handleChange} style={{ width: '100%', marginBottom: 0 }}>
+                  {WALLETS.map(w => <option key={`to-${w.id}`} value={w.name}>{w.name}</option>)}
+                </select>
+              </div>
+            </div>
+          ) : (
+            <div style={{ marginBottom: '15px' }}>
+              <select name="wallet" value={formData.wallet} onChange={handleChange}>
+                {WALLETS.map(w => <option key={w.id} value={w.name}>{formData.type === 'Income' ? 'เข้าบัญชี: ' : 'หักจากบัญชี: '}{w.name}</option>)}
+              </select>
+            </div>
+          )}
+
           <input type="number" name="amount" placeholder="จำนวนเงิน (บาท)" value={formData.amount} onChange={handleChange} required />
           <input type="text" name="note" placeholder="บันทึกย่อ (ถ้ามี)" value={formData.note} onChange={handleChange} />
           
@@ -598,9 +664,9 @@ function App() {
               
               {formData.slip ? (
                 <div style={{ position: 'relative', display: 'inline-block' }}>
-                  <img src={formData.slip} alt="preview" style={{ maxHeight: '110px', borderRadius: '8px', border: '1px solid #444' }} />
-                  {/* ปุ่ม X ที่มุมขวาบนสุดของรูปสลิปพอดี */}
-                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: '-8px', right: '-8px', backgroundColor: '#333', color: '#fff', border: '1px solid #555', borderRadius: '50%', width: '22px', height: '22px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                  <img src={formData.slip} alt="preview" style={{ maxHeight: '110px', borderRadius: '8px', border: '1px solid #444', display: 'block' }} />
+                  {/* ปุ่ม X ของสลิป วางแปะมุมขวาบนของรูปพอดีแบบ Clean */}
+                  <button type="button" onClick={(e) => { e.stopPropagation(); removeSlip(); }} style={{ position: 'absolute', top: 0, right: 0, backgroundColor: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderBottomLeftRadius: '8px', borderTopRightRadius: '8px', width: '28px', height: '28px', fontSize: '14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
                 </div>
               ) : (
                 <>
@@ -618,42 +684,32 @@ function App() {
 
       {/* Modal / Popup: ประวัติการใช้งาน */}
       {showHistoryModal && (
-        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           
-          {/* กล่อง Modal */}
-          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '650px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             
-            {/* ส่วนหัว Fixed: ใช้ position: relative เพื่อล็อคปุ่ม X ไว้มุมขวาบนสุด */}
-            <div style={{ 
-              position: 'relative', 
-              padding: '20px 50px 20px 20px', /* เว้นที่ด้านขวา 50px กันตัวอักษรชนปุ่ม X */
-              borderBottom: '1px solid #333', 
-              backgroundColor: '#1e1e1e',
-              flexShrink: 0
-            }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', lineHeight: '1.4' }}>ประวัติการใช้งาน</h2>
-              
-              {/* ปุ่ม X บังคับชิดขวาบน 100% เสมอ */}
+            {/* โครงสร้างส่วนหัวแบบตายตัว ล็อคปุ่ม X มุมขวาบนสุดเสมอ */}
+            <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ประวัติการใช้งาน</h2>
               <button 
                 onClick={() => setShowHistoryModal(false)} 
                 style={{ 
-                  position: 'absolute',
+                  position: 'absolute', 
                   top: '20px', 
-                  right: '20px',
+                  right: '20px', 
                   background: 'none', 
                   border: 'none', 
                   color: '#aaa', 
                   fontSize: '24px', 
-                  cursor: 'pointer',
-                  padding: '0',
-                  lineHeight: '1'
+                  cursor: 'pointer', 
+                  padding: 0, 
+                  lineHeight: '1' 
                 }}
               >
                 ✕
               </button>
             </div>
             
-            {/* ส่วนเนื้อหา Scrollable */}
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
                 <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
@@ -692,7 +748,13 @@ function App() {
                           <div key={item.id} className="transaction-item" style={{ alignItems: 'flex-start' }}>
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: '500' }}>{item.Category}</div>
-                              <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>{item.Note ? `${item.Note} • ` : ''} {new Date(item.Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                              
+                              {/* แสดงว่าเงินเข้าออกกระเป๋าไหน */}
+                              <div style={{ fontSize: '11px', color: '#aaa', marginBottom: '2px', backgroundColor: '#222', display: 'inline-block', padding: '2px 6px', borderRadius: '4px' }}>
+                                💳 {item.Type === 'Transfer' ? `${item.FromWallet || 'เงินสด'} ➔ ${item.ToWallet || 'เงินสด'}` : (item.Wallet || 'เงินสด')}
+                              </div>
+                              
+                              <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px', marginTop: '4px' }}>{item.Note ? `${item.Note} • ` : ''} {new Date(item.Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
                               {item.Slip && <img src={item.Slip} alt="slip" onClick={() => setViewSlipImage(item.Slip)} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer', border: '1px solid #444' }} />}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
@@ -735,42 +797,32 @@ function App() {
 
       {/* Modal / Popup: สรุป PDF */}
       {showExportModal && (
-        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
+        <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           
-          {/* กล่อง Modal */}
-          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
+          <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '600px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
             
-            {/* ส่วนหัว Fixed: ใช้ position: relative เพื่อล็อคปุ่ม X ไว้มุมขวาบนสุด */}
-            <div style={{ 
-              position: 'relative', 
-              padding: '20px 50px 20px 20px', /* เว้นที่ด้านขวา 50px กันตัวอักษรชนปุ่ม X */
-              borderBottom: '1px solid #333', 
-              backgroundColor: '#1e1e1e',
-              flexShrink: 0
-            }}>
-              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', lineHeight: '1.4' }}>ออกรายงาน PDF</h2>
-              
-              {/* ปุ่ม X บังคับชิดขวาบน 100% เสมอ */}
+            {/* โครงสร้างส่วนหัวแบบตายตัว ล็อคปุ่ม X มุมขวาบนสุดเสมอ */}
+            <div style={{ position: 'relative', padding: '20px', borderBottom: '1px solid #333', backgroundColor: '#1e1e1e' }}>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px', paddingRight: '40px' }}>ออกรายงาน PDF</h2>
               <button 
                 onClick={() => setShowExportModal(false)} 
                 style={{ 
-                  position: 'absolute',
+                  position: 'absolute', 
                   top: '20px', 
-                  right: '20px',
+                  right: '20px', 
                   background: 'none', 
                   border: 'none', 
                   color: '#aaa', 
                   fontSize: '24px', 
-                  cursor: 'pointer',
-                  padding: '0',
-                  lineHeight: '1'
+                  cursor: 'pointer', 
+                  padding: 0, 
+                  lineHeight: '1' 
                 }}
               >
                 ✕
               </button>
             </div>
             
-            {/* ส่วนเนื้อหา Scrollable */}
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
               <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
                 <div style={{ flex: 1 }}>
@@ -814,7 +866,7 @@ function App() {
             <tr style={{ backgroundColor: '#f2f2f2' }}>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>วันที่</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>ประเภท</th>
-              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>หมวดหมู่ / บันทึก</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>หมวดบัญชี / บันทึก</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>สลิป</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>จำนวนเงิน (บาท)</th>
             </tr>
@@ -824,7 +876,13 @@ function App() {
               <tr key={index}>
                 <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'middle' }}>{new Date(item.Date).toLocaleDateString('th-TH')}</td>
                 <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'middle' }}>{item.Type === 'Income' ? 'รายรับ' : item.Type === 'Expense' ? 'รายจ่าย' : 'โอนเงิน'}</td>
-                <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'middle' }}>{item.Category} {item.Note ? `(${item.Note})` : ''}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'middle' }}>
+                  {item.Category} {item.Note ? `(${item.Note})` : ''}
+                  <br/>
+                  <small style={{color: '#666'}}>
+                    [{item.Type === 'Transfer' ? `${item.FromWallet || 'เงินสด'} ➔ ${item.ToWallet || 'เงินสด'}` : (item.Wallet || 'เงินสด')}]
+                  </small>
+                </td>
                 <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
                   {item.Slip ? (
                     <img src={item.Slip} alt="slip" style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #999' }} />
