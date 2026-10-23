@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import './index.css';
 
-// นำเข้าโมดูลของ Firebase (แก้ไขนำ sendPasswordResetLink ที่เกินออก)
+// นำเข้าโมดูลของ Firebase
 import { initializeApp } from "firebase/app";
 import { 
   getAuth, 
@@ -34,8 +34,8 @@ const googleProvider = new GoogleAuthProvider();
 const facebookProvider = new FacebookAuthProvider();
 
 const CATEGORIES = {
-  Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'บิล/ค่าน้ำค่าไฟ', 'โอนไปบัญชีอื่น', 'อื่นๆ'],
-  Income: ['เงินเดือน', 'รายได้เสริม', 'โบนัส', 'ลงทุน', 'เงินคืน / ปันผล', 'อื่นๆ (รายรับ)'],
+  Expense: ['อาหาร', 'เดินทาง', 'ช้อปปิ้ง', 'ลงทุน', 'บิล/ค่าน้ำค่าไฟ', 'โอนไปบัญชีอื่น', 'อื่นๆ'],
+  Income: ['เงินเดือน', 'รายได้เสริม', 'โบนัส', 'เงินคืน / ปันผล', 'อื่นๆ (รายรับ)'],
   Transfer: ['โอนบัญชีอื่น', 'เงินออม', 'อื่นๆ (โอน)'] 
 };
 
