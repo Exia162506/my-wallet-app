@@ -1,5 +1,8 @@
 {
   "dependencies": {
     "firebase": "^13.1.0"
+  },
+  "devDependencies": {
+    "vite-plugin-pwa": "^2.0.0"
   }
 }
