@@ -620,22 +620,21 @@ function App() {
       {/* Modal / Popup: ประวัติการใช้งาน */}
       {showHistoryModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '40px', zIndex: 1000, overflowY: 'auto' }}>
-          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '650px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky ขยายเต็มขอบซ้ายขวาเพื่อให้ปุ่ม X ไปอยู่มุมขวาบนสุดพอดี */}
+            {/* ส่วนหัว Sticky เต็มขอบซ้ายขวา ปุ่ม X ชิดมุมขวาบนสุดพอดี */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center', 
               position: 'sticky', 
-              top: '-20px', 
+              top: 0, 
               backgroundColor: '#1e1e1e', 
               zIndex: 10, 
-              padding: '15px 20px 12px 20px', 
-              margin: '-20px -20px 15px -20px',
+              padding: '15px 20px', 
               borderBottom: '1px solid #333'
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37', lineHeight: '1.2' }}>ประวัติการใช้งาน</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px' }}>ประวัติการใช้งาน</h2>
               <button 
                 onClick={() => setShowHistoryModal(false)} 
                 style={{ 
@@ -654,59 +653,61 @@ function App() {
               </button>
             </div>
             
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-              <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
-              <button type="button" style={tabStyle('week')} onClick={() => setViewMode('week')}>รายสัปดาห์</button>
-              <button type="button" style={tabStyle('month')} onClick={() => setViewMode('month')}>รายเดือน</button>
-            </div>
-
-            {viewMode === 'day' && (
-              <div style={{ marginBottom: '15px', backgroundColor: '#2a2a2a', padding: '12px', borderRadius: '8px', border: '1px solid #444' }}>
-                <label style={{ fontSize: '13px', color: '#aaa', display: 'block', marginBottom: '5px' }}>📅 เลือกวันที่ต้องการดู:</label>
-                <input 
-                  type="date" 
-                  value={selectedDay} 
-                  onChange={(e) => setSelectedDay(e.target.value)} 
-                  style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #555', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}
-                />
+            <div style={{ padding: '20px', paddingTop: '15px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+                <button type="button" style={tabStyle('day')} onClick={() => setViewMode('day')}>รายวัน</button>
+                <button type="button" style={tabStyle('week')} onClick={() => setViewMode('week')}>รายสัปดาห์</button>
+                <button type="button" style={tabStyle('month')} onClick={() => setViewMode('month')}>รายเดือน</button>
               </div>
-            )}
 
-            {sortedGroups.length === 0 && <p style={{ textAlign: 'center', color: '#888', padding: '20px 0' }}>ยังไม่มีรายการ</p>}
-            {sortedGroups.map(groupKey => {
-              const isOpen = expandedGroups[groupKey] !== false; 
-              return (
-                <div key={groupKey} style={{ marginBottom: '15px' }}>
-                  <div onClick={() => toggleGroup(groupKey)} style={{ backgroundColor: '#2a2a2a', padding: '10px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><span style={{ fontSize: '12px', color: '#888' }}>{isOpen ? '▼' : '▶'}</span><span style={{ color: '#d4af37', fontWeight: 'bold' }}>{groupKey}</span></div>
-                    <span style={{ fontSize: '14px' }}>
-                      {groupedTransactions[groupKey].totalIncome > 0 && <span className="income-text">+{groupedTransactions[groupKey].totalIncome.toLocaleString()} </span>}
-                      {groupedTransactions[groupKey].totalIncome > 0 && groupedTransactions[groupKey].totalExpense > 0 && <span style={{ color: '#555', margin: '0 5px' }}>|</span>}
-                      {groupedTransactions[groupKey].totalExpense > 0 && <span className="expense-text">-{groupedTransactions[groupKey].totalExpense.toLocaleString()}</span>}
-                    </span>
-                  </div>
-                  {isOpen && (
-                    <div style={{ padding: '0 10px', marginTop: '5px' }}>
-                      {groupedTransactions[groupKey].items.slice().reverse().map(item => (
-                        <div key={item.id} className="transaction-item" style={{ alignItems: 'flex-start' }}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontWeight: '500' }}>{item.Category}</div>
-                            <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>{item.Note ? `${item.Note} • ` : ''} {new Date(item.Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
-                            {item.Slip && <img src={item.Slip} alt="slip" onClick={() => setViewSlipImage(item.Slip)} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer', border: '1px solid #444' }} />}
-                          </div>
-                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
-                            <div className={item.Type === 'Income' ? 'income-text' : item.Type === 'Expense' ? 'expense-text' : ''} style={item.Type === 'Transfer' ? { color: '#4da6ff', fontWeight: 'bold' } : {}}>
-                              {item.Type === 'Income' ? '+' : item.Type === 'Expense' ? '-' : ''}฿{Number(item.Amount).toLocaleString()}
-                            </div>
-                            <button onClick={() => handleDelete(item.id)} style={{ padding: '5px 10px', backgroundColor: '#333', color: '#ff4d4d', borderRadius: '4px', fontSize: '12px', border: 'none', cursor: 'pointer' }}>ลบ</button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+              {viewMode === 'day' && (
+                <div style={{ marginBottom: '15px', backgroundColor: '#2a2a2a', padding: '12px', borderRadius: '8px', border: '1px solid #444' }}>
+                  <label style={{ fontSize: '13px', color: '#aaa', display: 'block', marginBottom: '5px' }}>📅 เลือกวันที่ต้องการดู:</label>
+                  <input 
+                    type="date" 
+                    value={selectedDay} 
+                    onChange={(e) => setSelectedDay(e.target.value)} 
+                    style={{ width: '100%', padding: '10px', backgroundColor: '#1e1e1e', border: '1px solid #555', color: '#fff', borderRadius: '6px', boxSizing: 'border-box' }}
+                  />
                 </div>
-              )
-            })}
+              )}
+
+              {sortedGroups.length === 0 && <p style={{ textAlign: 'center', color: '#888', padding: '20px 0' }}>ยังไม่มีรายการ</p>}
+              {sortedGroups.map(groupKey => {
+                const isOpen = expandedGroups[groupKey] !== false; 
+                return (
+                  <div key={groupKey} style={{ marginBottom: '15px' }}>
+                    <div onClick={() => toggleGroup(groupKey)} style={{ backgroundColor: '#2a2a2a', padding: '10px 15px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}><span style={{ fontSize: '12px', color: '#888' }}>{isOpen ? '▼' : '▶'}</span><span style={{ color: '#d4af37', fontWeight: 'bold' }}>{groupKey}</span></div>
+                      <span style={{ fontSize: '14px' }}>
+                        {groupedTransactions[groupKey].totalIncome > 0 && <span className="income-text">+{groupedTransactions[groupKey].totalIncome.toLocaleString()} </span>}
+                        {groupedTransactions[groupKey].totalIncome > 0 && groupedTransactions[groupKey].totalExpense > 0 && <span style={{ color: '#555', margin: '0 5px' }}>|</span>}
+                        {groupedTransactions[groupKey].totalExpense > 0 && <span className="expense-text">-{groupedTransactions[groupKey].totalExpense.toLocaleString()}</span>}
+                      </span>
+                    </div>
+                    {isOpen && (
+                      <div style={{ padding: '0 10px', marginTop: '5px' }}>
+                        {groupedTransactions[groupKey].items.slice().reverse().map(item => (
+                          <div key={item.id} className="transaction-item" style={{ alignItems: 'flex-start' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: '500' }}>{item.Category}</div>
+                              <div style={{ fontSize: '12px', color: '#888', marginBottom: '5px' }}>{item.Note ? `${item.Note} • ` : ''} {new Date(item.Date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: 'numeric' })}</div>
+                              {item.Slip && <img src={item.Slip} alt="slip" onClick={() => setViewSlipImage(item.Slip)} style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '6px', cursor: 'pointer', border: '1px solid #444' }} />}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '10px' }}>
+                              <div className={item.Type === 'Income' ? 'income-text' : item.Type === 'Expense' ? 'expense-text' : ''} style={item.Type === 'Transfer' ? { color: '#4da6ff', fontWeight: 'bold' } : {}}>
+                                {item.Type === 'Income' ? '+' : item.Type === 'Expense' ? '-' : ''}฿{Number(item.Amount).toLocaleString()}
+                              </div>
+                              <button onClick={() => handleDelete(item.id)} style={{ padding: '5px 10px', backgroundColor: '#333', color: '#ff4d4d', borderRadius: '4px', fontSize: '12px', border: 'none', cursor: 'pointer' }}>ลบ</button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -734,22 +735,21 @@ function App() {
       {/* Modal / Popup: สรุป PDF */}
       {showExportModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
-          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', padding: '20px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
+          <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', borderRadius: '12px', position: 'relative', maxHeight: '85vh', overflowY: 'auto', boxSizing: 'border-box' }}>
             
-            {/* ส่วนหัว Sticky ขยายเต็มขอบซ้ายขวาเพื่อให้ปุ่ม X ไปอยู่มุมขวาบนสุดพอดี */}
+            {/* ส่วนหัว Sticky เต็มขอบซ้ายขวา ปุ่ม X ชิดมุมขวาบนสุดพอดี */}
             <div style={{ 
               display: 'flex', 
               justifyContent: 'space-between', 
               alignItems: 'center', 
               position: 'sticky', 
-              top: '-20px', 
+              top: 0, 
               backgroundColor: '#1e1e1e', 
               zIndex: 10, 
-              padding: '15px 20px 12px 20px', 
-              margin: '-20px -20px 15px -20px',
+              padding: '15px 20px', 
               borderBottom: '1px solid #333'
             }}>
-              <h2 style={{ margin: 0, color: '#d4af37', lineHeight: '1.2' }}>ออกรายงาน PDF</h2>
+              <h2 style={{ margin: 0, color: '#d4af37', fontSize: '20px' }}>ออกรายงาน PDF</h2>
               <button 
                 onClick={() => setShowExportModal(false)} 
                 style={{ 
@@ -768,27 +768,29 @@ function App() {
               </button>
             </div>
             
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '14px', color: '#aaa' }}>ตั้งแต่วันที่</label>
-                <input type="date" value={exportStart} onChange={e => setExportStart(e.target.value)} />
-              </div>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '14px', color: '#aaa' }}>ถึงวันที่</label>
-                <input type="date" value={exportEnd} onChange={e => setExportEnd(e.target.value)} />
-              </div>
-            </div>
-
-            {exportStart && exportEnd && (
-              <div style={{ marginBottom: '20px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#2a2a2a', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
-                  <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>รายรับช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#4CAF50' }}>+฿{exportIncomeTotal.toLocaleString()}</h3></div>
-                  <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>รายจ่ายช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#ff4d4d' }}>-฿{exportExpenseTotal.toLocaleString()}</h3></div>
-                  <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>คงเหลือช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#d4af37' }}>฿{(exportIncomeTotal - exportExpenseTotal).toLocaleString()}</h3></div>
+            <div style={{ padding: '20px', paddingTop: '15px' }}>
+              <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '14px', color: '#aaa' }}>ตั้งแต่วันที่</label>
+                  <input type="date" value={exportStart} onChange={e => setExportStart(e.target.value)} />
                 </div>
-                <button onClick={() => window.print()} style={{ width: '100%', padding: '15px', fontSize: '16px' }}>🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '14px', color: '#aaa' }}>ถึงวันที่</label>
+                  <input type="date" value={exportEnd} onChange={e => setExportEnd(e.target.value)} />
+                </div>
               </div>
-            )}
+
+              {exportStart && exportEnd && (
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: '#2a2a2a', padding: '15px', borderRadius: '8px', marginBottom: '15px' }}>
+                    <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>รายรับช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#4CAF50' }}>+฿{exportIncomeTotal.toLocaleString()}</h3></div>
+                    <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>รายจ่ายช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#ff4d4d' }}>-฿{exportExpenseTotal.toLocaleString()}</h3></div>
+                    <div style={{ textAlign: 'center' }}><p style={{ margin: 0, fontSize: '12px', color: '#aaa' }}>คงเหลือช่วงนี้</p><h3 style={{ margin: '5px 0 0 0', color: '#d4af37' }}>฿{(exportIncomeTotal - exportExpenseTotal).toLocaleString()}</h3></div>
+                  </div>
+                  <button onClick={() => window.print()} style={{ width: '100%', padding: '15px', fontSize: '16px' }}>🖨️ พิมพ์ / บันทึกเป็น PDF</button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
