@@ -639,7 +639,7 @@ function App() {
         </form>
       </div>
 
-      {/* Modal: ตั้งค่าบัญชีธนาคาร (แก้ไขฟอร์มเพิ่มบัญชีให้แสดงผลถูกต้อง) */}
+      {/* Modal: ตั้งค่าบัญชีธนาคาร (แก้ไขฟอร์มเพิ่มบัญชีเป็นแนวตั้ง) */}
       {showSettingsModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, padding: '20px' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '100%', maxWidth: '500px', borderRadius: '12px', display: 'flex', flexDirection: 'column', maxHeight: '85vh', overflow: 'hidden' }}>
@@ -649,27 +649,27 @@ function App() {
             </div>
             
             <div style={{ padding: '20px', overflowY: 'auto', flex: 1 }}>
-              {/* ฟอร์มเพิ่มบัญชีใหม่ (แก้ไขสไตล์ Input ให้เห็นชัดเจนและใช้งานได้ปกติ) */}
-              <form onSubmit={handleAddCustomWallet} style={{ display: 'flex', gap: '8px', marginBottom: '20px', alignItems: 'center' }}>
+              {/* ฟอร์มเพิ่มบัญชีใหม่ (ปรับเป็นแนวตั้งเต็มความกว้าง แก้ปัญหา input หด) */}
+              <form onSubmit={handleAddCustomWallet} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
                 <input 
                   type="text" 
-                  placeholder="พิมพ์ชื่อบัญชีหรือธนาคารใหม่..." 
+                  placeholder="พิมพ์ชื่อบัญชีหรือธนาคารใหม่ เช่น กระเป๋าเงินส่วนตัว..." 
                   value={newWalletName} 
                   onChange={(e) => setNewWalletName(e.target.value)}
                   style={{ 
-                    flex: 1, 
+                    width: '100%',
                     marginBottom: 0, 
-                    padding: '10px', 
+                    padding: '12px', 
                     backgroundColor: '#2a2a2a', 
                     border: '1px solid #444', 
                     color: '#fff', 
                     borderRadius: '8px', 
-                    minWidth: 0,
                     outline: 'none',
-                    fontSize: '14px'
+                    fontSize: '14px',
+                    boxSizing: 'border-box'
                   }}
                 />
-                <button type="submit" style={{ padding: '10px 15px', backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: 'pointer', flexShrink: 0 }}>+ เพิ่ม</button>
+                <button type="submit" style={{ width: '100%', padding: '12px', backgroundColor: '#d4af37', color: '#121212', fontWeight: 'bold', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>+ เพิ่มบัญชี</button>
               </form>
 
               <p style={{ color: '#aaa', fontSize: '14px', marginTop: 0, marginBottom: '15px' }}>เปิด/ปิด บัญชีที่ต้องการแสดง หรือลบบัญชีที่สร้างขึ้นเอง</p>
