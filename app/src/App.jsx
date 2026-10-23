@@ -186,18 +186,29 @@ function App() {
     }
   };
 
-  // ปรับปรุงระบบ OCR ให้ใช้โหมด 'eng' เพื่อความเร็วและความแม่นยำในการดึงตัวเลขยอดเงิน
+  // ปรับปรุงระบบ OCR ให้ค้นหายอดเงินได้ยืดหยุ่นขึ้น (รองรับทศนิยมและตัวเลขทั่วไป)
   const scanSlipOCR = async (imageSrc) => {
     try {
       const { data: { text } } = await Tesseract.recognize(imageSrc, 'eng');
-      console.log("OCR Text:", text);
+      console.log("OCR Extracted Text:", text);
 
-      // ค้นหาตัวเลขยอดเงินแบบยืดหยุ่นขึ้น (รองรับจุดทศนิยม)
-      const amountRegex = /[0-9]{1,3}(?:,[0-9]{3})*\.[0-9]{2}/g;
-      const amounts = text.match(amountRegex);
+      if (!text || text.trim() === "") {
+        alert("⚠️ OCR ไม่สามารถอ่านข้อความในรูปภาพนี้ได้ กรุณากรอกจำนวนเงินด้วยตนเอง");
+        return;
+      }
+
+      // Regex แบบยืดหยุ่น: หาตัวเลขที่มีทศนิยม .xx หรือตัวเลขทั่วไปในสลิป
+      const amountRegex = /\d{1,3}(?:,\d{3})*\.\d{2}|\d+\.\d{2}|\d+/g;
+      const matches = text.match(amountRegex);
+      
       let detectedAmount = '';
-      if (amounts && amounts.length > 0) {
-        detectedAmount = amounts[amounts.length - 1].replace(/,/g, ''); 
+      if (matches && matches.length > 0) {
+        // กรองเอาเฉพาะตัวเลขที่มีค่ามากกว่า 0 เพื่อเลี่ยงปี พ.ศ. หรือรหัสอื่นๆ
+        const validAmounts = matches.map(m => m.replace(/,/g, '')).filter(num => Number(num) > 0 && Number(num) < 1000000);
+        if (validAmounts.length > 0) {
+          // มักจะเอายอดเงินที่อยู่ท้ายๆ ของข้อความสลิป
+          detectedAmount = validAmounts[validAmounts.length - 1];
+        }
       }
 
       let matchedWallet = null;
@@ -212,7 +223,7 @@ function App() {
           matchedWallet = w.name;
           if (isAccNumMatch || isAccNameMatch) {
             const lowerText = text.toLowerCase();
-            if (lowerText.includes('receive') || lowerText.includes('in') || lowerText.includes('รับ')) {
+            if (lowerText.includes('receive') || lowerText.includes('in') || lowerText.includes('รับ') || lowerText.includes('เข้า')) {
               detectedType = 'Income';
             } else {
               detectedType = 'Expense';
@@ -231,6 +242,7 @@ function App() {
 
     } catch (error) {
       console.error("OCR Error:", error);
+      alert("❌ เกิดข้อผิดพลาดในการสแกนสลิป: " + error.message);
     } finally {
       setIsScanning(false);
     }
@@ -244,14 +256,14 @@ function App() {
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800; // เพิ่มความกว้างเพื่อให้ตัวเลขคมชัดขึ้นสำหรับ OCR
+        const MAX_WIDTH = 900; 
         const scaleSize = MAX_WIDTH / img.width;
         canvas.width = MAX_WIDTH;
         canvas.height = img.height * scaleSize;
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
         setFormData(prev => ({ ...prev, slip: dataUrl }));
         setSlipError(false);
         scanSlipOCR(dataUrl);
