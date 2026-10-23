@@ -131,7 +131,7 @@ function App() {
         const ctx = canvas.getContext('2d');
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         setFormData(prev => ({ ...prev, slip: canvas.toDataURL('image/jpeg', 0.7) }));
-        setSlipError(false); // ปิดแจ้งเตือนสีแดงเมื่ออัปโหลดรูปสำเร็จ
+        setSlipError(false);
       };
       img.src = event.target.result;
     };
@@ -147,7 +147,6 @@ function App() {
     e.preventDefault();
     if (!formData.amount || !user) return;
     
-    // บังคับแนบสลิป ถ้ายืนยันโดยไม่มีสลิปจะเปลี่ยนกรอบเป็นสีแดง
     if (!formData.slip) {
       setSlipError(true);
       alert("⚠️ กรุณาแนบสลิปหรือหลักฐานการทำรายการก่อนบันทึกครับ");
@@ -221,7 +220,6 @@ function App() {
     color: viewMode === mode ? '#121212' : '#aaa', border: 'none', cursor: 'pointer', fontWeight: 'bold', borderRadius: '8px'
   });
 
-  // คำนวณข้อมูลสำหรับ Export PDF
   const filteredExport = transactions.filter(t => {
     if (!exportStart || !exportEnd) return false;
     return t.Date >= exportStart && t.Date <= exportEnd;
@@ -244,7 +242,6 @@ function App() {
 
   return (
     <div>
-      {/* สไตล์ CSS สำหรับแยกโหมดหน้าจอปกติกับโหมดปริ้นท์ PDF */}
       <style>
         {`
           @media screen {
@@ -299,7 +296,6 @@ function App() {
           <input type="number" name="amount" placeholder="จำนวนเงิน (บาท)" value={formData.amount} onChange={handleChange} required />
           <input type="text" name="note" placeholder="บันทึกย่อ (ถ้ามี)" value={formData.note} onChange={handleChange} />
           
-          {/* กล่องอัปโหลดสลิปที่เปลี่ยนสีตามสถานะ Error */}
           <div style={{ marginTop: '10px', backgroundColor: '#2a2a2a', padding: '10px', borderRadius: '8px', border: slipError ? '1px solid #ff4d4d' : '1px solid #444' }}>
             <p style={{ margin: '0 0 8px 0', fontSize: '14px', color: slipError ? '#ff4d4d' : '#ccc', fontWeight: slipError ? 'bold' : 'normal' }}>
               {slipError ? '* กรุณาแนบสลิปก่อนบันทึก!' : 'แนบสลิป/หลักฐาน (บังคับ)'}
@@ -368,14 +364,12 @@ function App() {
         )}
       </div>
 
-      {/* ป๊อปอัปดูรูปสลิป */}
       {viewSlipImage && (
         <div className="no-print" onClick={() => setViewSlipImage(null)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, cursor: 'zoom-out' }}>
           <img src={viewSlipImage} alt="slip-full" style={{ maxWidth: '90%', maxHeight: '90%', borderRadius: '12px' }} />
         </div>
       )}
 
-      {/* ป๊อปอัป ออกรายงาน PDF */}
       {showExportModal && (
         <div className="no-print" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.9)', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', paddingTop: '50px', zIndex: 1000, overflowY: 'auto' }}>
           <div style={{ backgroundColor: '#1e1e1e', width: '90%', maxWidth: '600px', padding: '20px', borderRadius: '12px', position: 'relative' }}>
@@ -407,7 +401,7 @@ function App() {
         </div>
       )}
 
-      {/* ส่วนที่จะถูกพิมพ์ลง PDF */}
+      {/* ส่วนที่จะถูกพิมพ์ลง PDF (เพิ่มคอลัมน์สลิป) */}
       <div className="print-only" style={{ padding: '20px', width: '100%', boxSizing: 'border-box' }}>
         <h1 style={{ textAlign: 'center', margin: '0 0 10px 0', fontSize: '24px' }}>สรุปรายการบัญชี My Wallet</h1>
         <p style={{ textAlign: 'center', margin: '0 0 20px 0' }}>ตั้งแต่วันที่ {exportStart ? new Date(exportStart).toLocaleDateString('th-TH') : '-'} ถึง {exportEnd ? new Date(exportEnd).toLocaleDateString('th-TH') : '-'}</p>
@@ -424,22 +418,28 @@ function App() {
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>วันที่</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>ประเภท</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'left' }}>หมวดหมู่ / บันทึก</th>
+              <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'center' }}>สลิป</th>
               <th style={{ border: '1px solid #000', padding: '8px', textAlign: 'right' }}>จำนวนเงิน (บาท)</th>
             </tr>
           </thead>
           <tbody>
             {filteredExport.map((item, index) => (
               <tr key={index}>
-                <td style={{ border: '1px solid #000', padding: '8px' }}>{new Date(item.Date).toLocaleDateString('th-TH')}</td>
-                <td style={{ border: '1px solid #000', padding: '8px' }}>{item.Type === 'Income' ? 'รายรับ' : item.Type === 'Expense' ? 'รายจ่าย' : 'โอนเงิน'}</td>
-                <td style={{ border: '1px solid #000', padding: '8px' }}>{item.Category} {item.Note ? `(${item.Note})` : ''}</td>
-                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', color: item.Type === 'Income' ? 'green' : item.Type === 'Expense' ? 'red' : 'blue' }}>
+                <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'middle' }}>{new Date(item.Date).toLocaleDateString('th-TH')}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'middle' }}>{item.Type === 'Income' ? 'รายรับ' : item.Type === 'Expense' ? 'รายจ่าย' : 'โอนเงิน'}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', verticalAlign: 'middle' }}>{item.Category} {item.Note ? `(${item.Note})` : ''}</td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'center', verticalAlign: 'middle' }}>
+                  {item.Slip ? (
+                    <img src={item.Slip} alt="slip" style={{ width: '45px', height: '45px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #999' }} />
+                  ) : '-'}
+                </td>
+                <td style={{ border: '1px solid #000', padding: '8px', textAlign: 'right', verticalAlign: 'middle', color: item.Type === 'Income' ? 'green' : item.Type === 'Expense' ? 'red' : 'blue' }}>
                   {item.Type === 'Expense' ? '-' : ''}{Number(item.Amount).toLocaleString()}
                 </td>
               </tr>
             ))}
             {filteredExport.length === 0 && (
-              <tr><td colSpan="4" style={{ textAlign: 'center', padding: '20px', border: '1px solid #000' }}>ไม่พบรายการในช่วงวันที่เลือก</td></tr>
+              <tr><td colSpan="5" style={{ textAlign: 'center', padding: '20px', border: '1px solid #000' }}>ไม่พบรายการในช่วงวันที่เลือก</td></tr>
             )}
           </tbody>
         </table>
